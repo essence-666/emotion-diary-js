@@ -1,0 +1,29 @@
+services:
+
+  postgres:
+    container_name: postgres
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: emotion_diary
+      POSTGRES_PASSWORD: dev_password
+      POSTGRES_DB: emotion_diary
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+
+  redis:
+    container_name: redis
+    image: redis:7
+    command: ["redis-server", "--appendonly", "yes"]
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:
