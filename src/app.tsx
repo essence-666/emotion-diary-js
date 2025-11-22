@@ -14,19 +14,13 @@ import theme from './theme';
 
 // Initialize mock auth in development
 import './utils/mockAuth';
+import DiaryPage from './pages/DiaryPage'
 
 // Placeholder pages
 const CheckinPage = () => (
   <Box>
     <Heading mb={4}>Mood Check-in</Heading>
     <p>Check-in component will go here...</p>
-  </Box>
-);
-
-const DiaryPage = () => (
-  <Box>
-    <Heading mb={4}>Diary</Heading>
-    <p>Diary component will go here...</p>
   </Box>
 );
 
