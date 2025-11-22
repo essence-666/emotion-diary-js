@@ -65,7 +65,7 @@ export const MonthlyHeatmap: React.FC<MonthlyHeatmapProps> = ({
 
   // Calculate color intensity based on emotion count
   const getColorIntensity = (emotionCount: number): string => {
-    if (emotionCount === 0) return 'gray.100'
+    if (emotionCount === 0) return useColorModeValue('gray.100', 'gray.500')
     
     const intensity = Math.min(emotionCount / MAX_EMOTION_COUNT, 1)
     const redIntensity = Math.floor(intensity * 255)
@@ -179,7 +179,7 @@ export const MonthlyHeatmap: React.FC<MonthlyHeatmapProps> = ({
             const cellBorderColor = isCurrentDay ? 'blue.500' : borderColor
 
             const tooltipContent = data ? (
-              <VStack align="stretch" spacing={1}>
+              <VStack align="stretch" borderRadius="md" spacing={1}>
                 <Text fontWeight="bold">{date}</Text>
                 <Text fontSize="sm">Emotions: {emotionCount}</Text>
                 {data.emotions && data.emotions.length > 0 && (
