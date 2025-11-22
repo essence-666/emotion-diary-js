@@ -38,6 +38,12 @@ pipeline {
                     }
                 }
 
+                stage('test') {
+                    steps {
+                        sh 'npm test -- --ci --coverage --maxWorkers=2'
+                    }
+                }
+
                 stage('build') {
                     steps {
                         sh 'npm run build'

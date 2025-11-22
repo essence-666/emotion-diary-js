@@ -7,21 +7,26 @@ module.exports = {
   webpackConfig: {
     output: {
       publicPath: `/static/${pkg.name}/${process.env.VERSION || pkg.version}/`
+    },
+    devServer: {
+      historyApiFallback: true, // Fix 404 on refresh for SPA routes
+      headers: {
+        'Content-Security-Policy': "default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval'; connect-src * 'unsafe-inline'; img-src * data: blob: 'unsafe-inline'; frame-src *; style-src * 'unsafe-inline';"
+      }
     }
   },
   /* use https://admin.bro-js.ru/ to create config, navigations and features */
   navigations: {
-    'ui-sample-project.main': '/ui-sample-project',
-    'ui-sample-project.analytics': '/ui-sample-project/analytics',
-    'link.ui-sample-project.auth': '/auth'
+    'emotion-diary.main': '/emotion-diary',
+    'emotion-diary.login': '/emotion-diary/login',
+    'emotion-diary.register': '/emotion-diary/register',
   },
   features: {
-    'ui-sample-project': {
+    'emotion-diary': {
       // add your features here in the format [featureName]: { value: string }
     },
   },
   config: {
-    'ui-sample-project.api': '/api',
-    'ui-sample-project.analytic-api': '/api/analytics'
+    'emotion-diary.api': '/api',
   }
 }
