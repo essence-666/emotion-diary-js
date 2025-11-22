@@ -10,89 +10,6 @@ const pool = new Pool({
   connectionTimeoutMillis: 2000,
 })
 
-/**
- * @swagger
- * /diary/entries:
- *   post:
- *     summary: Создать запись в дневнике
- *     tags: [Diary]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - content
- *             properties:
- *               title:
- *                 type: string
- *                 description: Заголовок записи
- *                 example: "День первый"
- *               content:
- *                 type: string
- *                 description: Содержание записи
- *                 example: "Сегодня был замечательный день..."
- *               tag_ids:
- *                 type: array
- *                 items:
- *                   type: integer
- *                 description: Массив ID тегов
- *                 example: [1, 2, 3]
- *               source_checkin_ids:
- *                 type: array
- *                 items:
- *                   type: string
- *                 description: Массив ID checkins, которые сгенерировали эту запись
- *     responses:
- *       201:
- *         description: Запись создана успешно
- */
-router.post('/entries', authMiddleware, async (req, res, next) => {
-  try {
-    const { title, content, tag_ids = [], source_checkin_ids = [] } = req.body
-    const userId = req.user.id
-
-    if (!content) {
-      return res.status(400).json({
-        ok: false,
-        message: 'content обязателен'
-      })
-    }
-
-    // Create diary entry
-    const result = await pool.query(
-      `INSERT INTO diary_entries (user_id, title, content, source_checkin_ids, entry_date)
-       VALUES ($1, $2, $3, $4, CURRENT_DATE)
-       RETURNING id, title, content, source_checkin_ids, created_at, updated_at, entry_date`,
-      [userId, title || null, content, source_checkin_ids]
-    )
-
-    const entry = result.rows[0]
-
-    // Add tags if provided
-    if (tag_ids.length > 0) {
-      for (const tagId of tag_ids) {
-        await pool.query(
-          'INSERT INTO diary_entry_tags (entry_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-          [entry.id, tagId]
-        )
-      }
-    }
-
-    // Get entry with tags
-    const entryWithTags = await getEntryWithTags(entry.id)
-
-    res.status(201).json({
-      ok: true,
-      entry: entryWithTags
-    })
-  } catch (err) {
-    next(err)
-  }
-})
 
 /**
  * @swagger
@@ -117,7 +34,6 @@ router.post('/entries', authMiddleware, async (req, res, next) => {
  *         name: tags
  *         schema:
  *           type: string
- *         description: Список ID тегов через запятую (например: "1,2,3")
  *     responses:
  *       200:
  *         description: Список записей
@@ -192,6 +108,90 @@ router.get('/', authMiddleware, async (req, res, next) => {
         total: parseInt(countResult.rows[0].count),
         totalPages: Math.ceil(parseInt(countResult.rows[0].count) / limit)
       }
+    })
+  } catch (err) {
+    next(err)
+  }
+})
+
+/**
+ * @swagger
+ * /diary:
+ *   post:
+ *     summary: Создать запись в дневнике
+ *     tags: [Diary]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - content
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 description: Заголовок записи
+ *                 example: "День первый"
+ *               content:
+ *                 type: string
+ *                 description: Содержание записи
+ *                 example: "Сегодня был замечательный день..."
+ *               tag_ids:
+ *                 type: array
+ *                 items:
+ *                   type: integer
+ *                 description: Массив ID тегов
+ *                 example: [1, 2, 3]
+ *               source_checkin_ids:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Массив ID checkins, которые сгенерировали эту запись
+ *     responses:
+ *       201:
+ *         description: Запись создана успешно
+ */
+router.post('/', authMiddleware, async (req, res, next) => {
+  try {
+    const { title, content, tag_ids = [], source_checkin_ids = [] } = req.body
+    const userId = req.user.id
+
+    if (!content) {
+      return res.status(400).json({
+        ok: false,
+        message: 'content обязателен'
+      })
+    }
+
+    // Create diary entry
+    const result = await pool.query(
+      `INSERT INTO diary_entries (user_id, title, content, source_checkin_ids, entry_date)
+       VALUES ($1, $2, $3, $4, CURRENT_DATE)
+       RETURNING id, title, content, source_checkin_ids, created_at, updated_at, entry_date`,
+      [userId, title || null, content, source_checkin_ids]
+    )
+
+    const entry = result.rows[0]
+
+    // Add tags if provided
+    if (tag_ids.length > 0) {
+      for (const tagId of tag_ids) {
+        await pool.query(
+          'INSERT INTO diary_entry_tags (entry_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          [entry.id, tagId]
+        )
+      }
+    }
+
+    // Get entry with tags
+    const entryWithTags = await getEntryWithTags(entry.id)
+
+    res.status(201).json({
+      ok: true,
+      entry: entryWithTags
     })
   } catch (err) {
     next(err)
@@ -366,14 +366,12 @@ router.delete('/entries/:id', authMiddleware, async (req, res, next) => {
  *         name: year
  *         schema:
  *           type: integer
- *         description: Год (например: 2025)
  *       - in: query
  *         name: month
  *         schema:
  *           type: integer
  *           minimum: 1
  *           maximum: 12
- *         description: Месяц (1-12)
  *     responses:
  *       200:
  *         description: Данные для календаря

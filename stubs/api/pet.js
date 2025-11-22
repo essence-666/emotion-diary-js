@@ -26,6 +26,7 @@ router.get('/', authMiddleware, async (req, res, next) => {
   try {
     const userId = req.user.id
 
+    console.log('userId', userId)
     // Get or create pet
     let result = await pool.query(
       'SELECT * FROM pets WHERE user_id = $1',

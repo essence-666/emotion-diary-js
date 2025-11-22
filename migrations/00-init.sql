@@ -4,57 +4,81 @@ CREATE TABLE users (
     email TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT NOW(),
-    subscription_tier TEXT DEFAULT 'free';
+    subscription_tier TEXT DEFAULT 'free'
 );
 
 CREATE TABLE emotions (
     id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL
+    name TEXT NOT NULL,
+    emoji TEXT,
+    color_hex TEXT
 );
 
 CREATE TABLE mood_checkins (
     id SERIAL PRIMARY KEY,
     user_id INT REFERENCES users(id),
     emotion_id INT REFERENCES emotions(id),
-    mood_score INT NOT NULL,
-    note TEXT,
-    created_at TIMESTAMP DEFAULT NOW()
+    intensity INT NOT NULL,                
+    reflection_text TEXT,                  
+    created_at TIMESTAMP DEFAULT NOW(),    
+    created_date DATE DEFAULT CURRENT_DATE 
 );
 
 CREATE TABLE diary_entries (
     id SERIAL PRIMARY KEY,
     user_id INT REFERENCES users(id),
+    title TEXT,
     content TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW()
+
+    source_checkin_ids TEXT[] DEFAULT '{}',
+
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+
+    entry_date DATE DEFAULT CURRENT_DATE,
+
+    is_private BOOLEAN DEFAULT FALSE,
+    ai_summary TEXT
 );
 
 CREATE TABLE tags (
     id SERIAL PRIMARY KEY,
-    name TEXT UNIQUE NOT NULL
+    name TEXT UNIQUE NOT NULL,
+    category TEXT,
+    emoji TEXT
 );
 
 CREATE TABLE diary_entry_tags (
-    entry_id INT REFERENCES diary_entries(id),
+    entry_id INT REFERENCES diary_entries(id) ON DELETE CASCADE,
     tag_id INT REFERENCES tags(id),
     PRIMARY KEY (entry_id, tag_id)
 );
 
+
 CREATE TABLE pets (
     id SERIAL PRIMARY KEY,
-    user_id INT REFERENCES users(id),
-    name TEXT,
-    happiness INT DEFAULT 50,
-    last_fed_at TIMESTAMP,
-    last_interaction_at TIMESTAMP
+    user_id INT NOT NULL UNIQUE,
+    name VARCHAR(100) NOT NULL DEFAULT 'Мой питомец',
+    pet_type VARCHAR(50) NOT NULL DEFAULT 'mood_cat',
+    happiness_level INT NOT NULL DEFAULT 50,
+    cosmetic_skin VARCHAR(100),
+    last_fed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Индекс по пользователю для быстрого поиска
+CREATE UNIQUE INDEX idx_pets_user_id ON pets(user_id);
 
 CREATE TABLE pet_interactions (
     id SERIAL PRIMARY KEY,
-    pet_id INT REFERENCES pets(id),
-    action TEXT NOT NULL,
-    amount INT DEFAULT 1,
-    created_at TIMESTAMP DEFAULT NOW()
+    pet_id INT NOT NULL REFERENCES pets(id) ON DELETE CASCADE,
+    interaction_type VARCHAR(50) NOT NULL, -- 'fed', 'petted', 'talked_to'
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Индекс для быстрого поиска взаимодействий по питомцу
+CREATE INDEX idx_pet_interactions_pet_id ON pet_interactions(pet_id);
 
 CREATE TABLE user_streaks (
     id SERIAL PRIMARY KEY,
@@ -100,3 +124,19 @@ CREATE TABLE user_preferences (
     theme TEXT DEFAULT 'light',
     notifications_enabled BOOLEAN DEFAULT true
 );
+
+INSERT INTO emotions (name, emoji, color_hex) VALUES
+('Happy', '😊', '#FFD93D'),
+('Sad', '😢', '#6C9BCF'),
+('Angry', '😡', '#E63946'),
+('Calm', '😌', '#90BE6D'),
+('Anxious', '😰', '#577590'),
+('Excited', '🤩', '#FF6B6B');
+
+INSERT INTO tags (name, category, emoji) VALUES
+('Work', 'productivity', '💼'),
+('Study', 'productivity', '📚'),
+('Health', 'wellbeing', '💊'),
+('Mood', 'emotions', '😊'),
+('Stress', 'emotions', '😰'),
+('Sleep', 'health', '😴');
