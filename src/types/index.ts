@@ -420,3 +420,32 @@ export type DateRange = {
   start: string;
   end: string;
 };
+
+// ----------------------------------------------------------------------------
+// Settings & Preferences Types
+// ----------------------------------------------------------------------------
+
+export interface UpdateProfileRequest {
+  username?: string;
+  email?: string;
+}
+
+export interface ChangePasswordRequest {
+  current_password: string;
+  new_password: string;
+}
+
+export interface DeleteAccountRequest {
+  password: string;
+}
+
+export interface ExportDataResponse {
+  user: User | null;
+  preferences: UserPreferences | null;
+  checkins: MoodCheckin[];
+  diary_entries: DiaryEntry[];
+  pet: Pet | null;
+  streak: UserStreak | null;
+  exported_at: string;
+}
+

@@ -57,6 +57,7 @@ export const EmotionSelector: React.FC<EmotionSelectorProps> = ({
   selectedEmotion = null,
 }) => {
   const borderColor = useColorModeValue('gray.200', 'gray.600')
+  const textColor = useColorModeValue('gray.800', 'white')
 
   return (
     <SimpleGrid
@@ -101,7 +102,7 @@ export const EmotionSelector: React.FC<EmotionSelectorProps> = ({
               <Text
                 fontSize="sm"
                 fontWeight={isSelected ? 'bold' : 'medium'}
-                color={isSelected ? emotion.color : 'inherit'}
+                color={textColor}
               >
                 {emotion.name}
               </Text>

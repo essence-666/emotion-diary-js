@@ -18,6 +18,12 @@ import type {
   UpdateDiaryEntryRequest,
   GetDiaryEntriesRequest,
   MonthlyHeatmapData,
+  UserPreferences,
+  UpdateProfileRequest,
+  ChangePasswordRequest,
+  DeleteAccountRequest,
+  ExportDataResponse,
+  User,
 } from '../types'
 
 interface GenerateImageResponse {
@@ -93,6 +99,104 @@ const generateMockHeatmapData = (year: number, month: number): MonthlyHeatmapDat
   })
 }
 
+const generateMockCheckins = (count: number = 10): MoodCheckin[] => {
+  const reflectionTexts = [
+    'Had a great morning walk. Feeling energized and positive.',
+    'Work was challenging today, but I managed to stay focused.',
+    'Feeling a bit overwhelmed with tasks. Need to take breaks.',
+    'Spent quality time with loved ones. Feeling grateful.',
+    'Accomplished my goals for the day. Proud of myself!',
+    'Had some setbacks, but staying optimistic.',
+    'Really enjoying this new hobby. It brings me peace.',
+    'Feeling anxious about upcoming events.',
+  ]
+
+  return Array.from({ length: count }, (_, i) => ({
+    id: i + 1,
+    user_id: 1,
+    emotion_id: (i % 6) + 1, // Rotate through emotions 1-6
+    intensity: Math.floor(Math.random() * 10) + 1, // 1-10
+    reflection_text: i % 3 === 0 ? reflectionTexts[i % reflectionTexts.length] : undefined,
+    created_at: new Date(Date.now() - i * 3600000 * 4).toISOString(), // Every 4 hours
+    updated_at: new Date(Date.now() - i * 3600000 * 4).toISOString(),
+  }))
+}
+
+// Mock pet state (persisted in memory for the session)
+let mockPetState: Pet = {
+  id: 1,
+  user_id: 1,
+  name: 'Buddy',
+  pet_type: 'cat',
+  happiness_level: 75,
+  last_interaction: new Date().toISOString(),
+  cosmetic_skin: 'default',
+  created_at: new Date(Date.now() - 30 * 86400000).toISOString(), // 30 days ago
+  updated_at: new Date().toISOString(),
+}
+
+const generateMockPet = (): Pet => {
+  return { ...mockPetState }
+}
+
+const updateMockPetHappiness = (change: number): Pet => {
+  mockPetState = {
+    ...mockPetState,
+    happiness_level: Math.max(0, Math.min(100, mockPetState.happiness_level + change)),
+    last_interaction: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }
+  return { ...mockPetState }
+}
+
+const generateMockDialogue = (happiness: number): string => {
+  if (happiness >= 80) {
+    return [
+      'I love you so much! You make me the happiest pet! 🥰',
+      'This is amazing! I feel so loved and cared for! ✨',
+      'You\'re the best! Thank you for taking such good care of me! 💖',
+      'I\'m so happy! Let\'s play together more often! 🎉',
+    ][Math.floor(Math.random() * 4)]
+  } else if (happiness >= 50) {
+    return [
+      'Thanks for spending time with me! 😊',
+      'I appreciate you! This means a lot to me.',
+      'Feeling good! You always know how to cheer me up!',
+      'I enjoy our time together! 💚',
+    ][Math.floor(Math.random() * 4)]
+  } else if (happiness >= 20) {
+    return [
+      'I could use some attention... 😔',
+      'It\'s been a while since we spent time together.',
+      'Are you still there? I miss you...',
+      'I need some care and love.',
+    ][Math.floor(Math.random() * 4)]
+  } else {
+    return [
+      'Please don\'t forget about me... 😢',
+      'I really need you right now...',
+      'I feel so lonely... Please come back.',
+      'I miss you so much... Where have you been?',
+    ][Math.floor(Math.random() * 4)]
+  }
+}
+
+const generateMockCheckinStats = (): CheckinStats => {
+  return {
+    emotion_distribution: {
+      happy: 25,
+      sad: 10,
+      angry: 5,
+      calm: 30,
+      stressed: 20,
+      excited: 10,
+    },
+    avg_intensity: 6.5,
+    total_checkins: 42,
+    streak_count: 7,
+  }
+}
+
 export const api = createApi({
   baseQuery: fetchBaseQuery({
     baseUrl: '/api',
@@ -104,7 +208,7 @@ export const api = createApi({
       return headers
     },
   }),
-  tagTypes: ['Auth', 'Checkin', 'Pet', 'Diary'],
+  tagTypes: ['Auth', 'Checkin', 'Pet', 'Diary', 'Preferences'],
   endpoints: (builder) => ({
     // ========================================================================
     // Auth Endpoints
@@ -151,7 +255,19 @@ export const api = createApi({
       invalidatesTags: ['Checkin', 'Pet'],
     }),
     getCheckins: builder.query<MoodCheckin[], { limit?: number; offset?: number }>({
-      query: ({ limit = 10, offset = 0 }) => `/checkins?limit=${limit}&offset=${offset}`,
+      queryFn: async ({ limit = 10, offset = 0 }, { getState }, extraOptions, baseQuery) => {
+        // Development mock
+        if (isDevelopment) {
+          await new Promise((resolve) => setTimeout(resolve, 500))
+          const allCheckins = generateMockCheckins(20)
+          const paginatedCheckins = allCheckins.slice(offset, offset + limit)
+          return { data: paginatedCheckins }
+        }
+
+        // Production: use real API
+        const result = await baseQuery(`/checkins?limit=${limit}&offset=${offset}`)
+        return result.data ? { data: result.data as MoodCheckin[] } : { error: result.error }
+      },
       providesTags: ['Checkin'],
     }),
     getDailyCheckins: builder.query<MoodCheckin[], { date: string }>({
@@ -159,7 +275,18 @@ export const api = createApi({
       providesTags: ['Checkin'],
     }),
     getCheckinStats: builder.query<CheckinStats, void>({
-      query: () => '/checkins/stats',
+      queryFn: async (_, { getState }, extraOptions, baseQuery) => {
+        // Development mock
+        if (isDevelopment) {
+          await new Promise((resolve) => setTimeout(resolve, 300))
+          const mockStats = generateMockCheckinStats()
+          return { data: mockStats }
+        }
+
+        // Production: use real API
+        const result = await baseQuery('/checkins/stats')
+        return result.data ? { data: result.data as CheckinStats } : { error: result.error }
+      },
       providesTags: ['Checkin'],
     }),
 
@@ -167,44 +294,128 @@ export const api = createApi({
     // Pet Endpoints
     // ========================================================================
     getPet: builder.query<Pet, void>({
-      query: () => '/pet',
+      queryFn: async (arg, { getState }, extraOptions, baseQuery) => {
+        // Development mock
+        if (isDevelopment) {
+          await new Promise((resolve) => setTimeout(resolve, 300))
+          return { data: generateMockPet() }
+        }
+
+        // Production: use real API
+        const result = await baseQuery('/pet')
+        return result.data ? { data: result.data as Pet } : { error: result.error }
+      },
       providesTags: ['Pet'],
     }),
     feedPet: builder.mutation<FeedPetResponse, void>({
-      query: () => ({
-        url: '/pet/feed',
-        method: 'POST',
-      }),
+      queryFn: async (arg, { getState }, extraOptions, baseQuery) => {
+        // Development mock
+        if (isDevelopment) {
+          await new Promise((resolve) => setTimeout(resolve, 500))
+          const updatedPet = updateMockPetHappiness(10)
+          return {
+            data: {
+              ok: true,
+              happiness_level: updatedPet.happiness_level,
+              happiness_change: 10,
+            }
+          }
+        }
+
+        // Production: use real API
+        const result = await baseQuery({
+          url: '/pet/feed',
+          method: 'POST',
+        })
+        return result.data ? { data: result.data as FeedPetResponse } : { error: result.error }
+      },
       invalidatesTags: ['Pet'],
     }),
     petPet: builder.mutation<FeedPetResponse, void>({
-      query: () => ({
-        url: '/pet/pet',
-        method: 'POST',
-      }),
+      queryFn: async (arg, { getState }, extraOptions, baseQuery) => {
+        // Development mock
+        if (isDevelopment) {
+          await new Promise((resolve) => setTimeout(resolve, 400))
+          const updatedPet = updateMockPetHappiness(5)
+          return {
+            data: {
+              ok: true,
+              happiness_level: updatedPet.happiness_level,
+              happiness_change: 5,
+            }
+          }
+        }
+
+        // Production: use real API
+        const result = await baseQuery({
+          url: '/pet/pet',
+          method: 'POST',
+        })
+        return result.data ? { data: result.data as FeedPetResponse } : { error: result.error }
+      },
       invalidatesTags: ['Pet'],
     }),
     talkToPet: builder.mutation<PetTalkResponse, void>({
-      query: () => ({
-        url: '/pet/talk',
-        method: 'POST',
-      }),
+      queryFn: async (arg, { getState }, extraOptions, baseQuery) => {
+        // Development mock
+        if (isDevelopment) {
+          await new Promise((resolve) => setTimeout(resolve, 600))
+          const updatedPet = updateMockPetHappiness(2)
+          const dialogue = generateMockDialogue(updatedPet.happiness_level)
+          return {
+            data: {
+              ok: true,
+              pet: updatedPet,
+              dialogue,
+            } as any // Backend returns { ok, pet, response } but type expects { ok, happiness_level, dialogue }
+          }
+        }
+
+        // Production: use real API
+        const result = await baseQuery({
+          url: '/pet/talk',
+          method: 'POST',
+        })
+        return result.data ? { data: result.data as PetTalkResponse } : { error: result.error }
+      },
       invalidatesTags: ['Pet'],
     }),
     updatePetName: builder.mutation<{ ok: boolean; name: string }, { name: string }>({
-      query: (body) => ({
-        url: '/pet/name',
-        method: 'PUT',
-        body,
-      }),
+      queryFn: async ({ name }, { getState }, extraOptions, baseQuery) => {
+        // Development mock
+        if (isDevelopment) {
+          await new Promise((resolve) => setTimeout(resolve, 300))
+          mockPetState = { ...mockPetState, name }
+          return { data: { ok: true, name } }
+        }
+
+        // Production: use real API
+        const result = await baseQuery({
+          url: '/pet/name',
+          method: 'PUT',
+          body: { name },
+        })
+        return result.data ? { data: result.data as { ok: boolean; name: string } } : { error: result.error }
+      },
       invalidatesTags: ['Pet'],
     }),
     customizePet: builder.mutation<{ ok: boolean }, CustomizePetRequest>({
-      query: (body) => ({
-        url: '/pet/customize',
-        method: 'POST',
-        body,
-      }),
+      queryFn: async ({ cosmetic_skin }, { getState }, extraOptions, baseQuery) => {
+        // Development mock
+        if (isDevelopment) {
+          await new Promise((resolve) => setTimeout(resolve, 300))
+          mockPetState = { ...mockPetState, cosmetic_skin }
+          return { data: { ok: true } }
+        }
+
+        // Production: use real API
+        const result = await baseQuery({
+          url: '/pet/customize',
+          method: 'POST',
+          body: { cosmetic_skin },
+        })
+        return result.data ? { data: result.data as { ok: boolean } } : { error: result.error }
+      },
       invalidatesTags: ['Pet'],
     }),
 
@@ -291,6 +502,48 @@ export const api = createApi({
     }),
 
     // ========================================================================
+    // Preferences Endpoints
+    // ========================================================================
+    getPreferences: builder.query<UserPreferences, void>({
+      query: () => '/preferences',
+      providesTags: ['Preferences'],
+    }),
+    updatePreferences: builder.mutation<{ ok: boolean; preferences: UserPreferences }, Partial<UserPreferences>>({
+      query: (body) => ({
+        url: '/preferences',
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: ['Preferences'],
+    }),
+    updateProfile: builder.mutation<{ ok: boolean; user: User }, UpdateProfileRequest>({
+      query: (body) => ({
+        url: '/auth/profile',
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: ['Auth'],
+    }),
+    changePassword: builder.mutation<{ ok: boolean; message: string }, ChangePasswordRequest>({
+      query: (body) => ({
+        url: '/auth/change-password',
+        method: 'POST',
+        body,
+      }),
+    }),
+    deleteAccount: builder.mutation<{ ok: boolean; message: string }, DeleteAccountRequest>({
+      query: (body) => ({
+        url: '/auth/account',
+        method: 'DELETE',
+        body,
+      }),
+      invalidatesTags: ['Auth', 'Checkin', 'Pet', 'Diary', 'Preferences'],
+    }),
+    exportData: builder.query<{ ok: boolean; data: ExportDataResponse }, void>({
+      query: () => '/auth/export-data',
+    }),
+
+    // ========================================================================
     // Legacy Endpoints (keep for compatibility)
     // ========================================================================
     generateImage: builder.mutation<GenerateImageResponse, GenerateImageRequest>({
@@ -343,6 +596,13 @@ export const {
   useUpdateDiaryEntryMutation,
   useDeleteDiaryEntryMutation,
   useGetMonthlyHeatmapQuery,
+  // Preferences
+  useGetPreferencesQuery,
+  useUpdatePreferencesMutation,
+  useUpdateProfileMutation,
+  useChangePasswordMutation,
+  useDeleteAccountMutation,
+  useExportDataQuery,
   // Legacy
   useGenerateImageMutation,
   useGetAnalyticsQuery,
