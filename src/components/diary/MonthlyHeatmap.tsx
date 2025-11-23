@@ -63,16 +63,40 @@ export const MonthlyHeatmap: React.FC<MonthlyHeatmapProps> = ({
     return days
   }, [currentYear, currentMonth, heatmapData])
 
+  // Color mode values
+  const bgColor = useColorModeValue('white', 'gray.800')
+  const borderColor = useColorModeValue('gray.200', 'gray.600')
+  const textColor = useColorModeValue('gray.800', 'white')
+  const emptyCellBg = useColorModeValue('gray.50', 'gray.700')
+  const noEmotionCellBg = useColorModeValue('gray.100', 'gray.600')
+
   // Calculate color intensity based on emotion count
+  // Light mode: purple/pink gradient (calm and clear)
+  // Dark mode: deeper purple gradient
   const getColorIntensity = (emotionCount: number): string => {
-    if (emotionCount === 0) return useColorModeValue('gray.100', 'gray.500')
-    
+    if (emotionCount === 0) return noEmotionCellBg
+
     const intensity = Math.min(emotionCount / MAX_EMOTION_COUNT, 1)
-    const redIntensity = Math.floor(intensity * 255)
-    const greenIntensity = Math.floor((1 - intensity) * 200)
-    const blueIntensity = Math.floor((1 - intensity) * 200)
-    
-    return `rgb(${redIntensity}, ${greenIntensity}, ${blueIntensity})`
+
+    // Use color mode to determine palette
+    const isLightMode = document.documentElement.classList.contains('chakra-ui-light') ||
+                        !document.documentElement.classList.contains('chakra-ui-dark')
+
+    if (isLightMode) {
+      // Light mode: soft purple to pink gradient
+      // Low intensity: #E9D5FF (purple.200) → High intensity: #C084FC (purple.400)
+      const r = Math.floor(192 + (233 - 192) * (1 - intensity))
+      const g = Math.floor(132 + (213 - 132) * (1 - intensity))
+      const b = Math.floor(252 + (255 - 252) * (1 - intensity))
+      return `rgb(${r}, ${g}, ${b})`
+    } else {
+      // Dark mode: deeper purple gradient
+      // Low intensity: #7C3AED (purple.600) → High intensity: #A78BFA (purple.400)
+      const r = Math.floor(124 + (167 - 124) * (1 - intensity))
+      const g = Math.floor(58 + (139 - 58) * (1 - intensity))
+      const b = Math.floor(237 + (250 - 237) * (1 - intensity))
+      return `rgb(${r}, ${g}, ${b})`
+    }
   }
 
   const handlePrevMonth = () => {
@@ -109,11 +133,6 @@ export const MonthlyHeatmap: React.FC<MonthlyHeatmapProps> = ({
     month: 'long',
     year: 'numeric',
   })
-
-  const bgColor = useColorModeValue('white', 'gray.800')
-  const borderColor = useColorModeValue('gray.200', 'gray.600')
-  const textColor = useColorModeValue('gray.800', 'white')
-  const emptyCellBg = useColorModeValue('gray.50', 'gray.700')
 
   return (
     <Box

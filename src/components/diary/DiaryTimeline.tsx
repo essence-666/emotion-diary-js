@@ -6,6 +6,9 @@ import {
   Text,
   Center,
   useColorModeValue,
+  HStack,
+  Button,
+  CloseButton,
 } from '@chakra-ui/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useGetDiaryEntriesQuery } from '../../__data__/api'
@@ -16,6 +19,8 @@ import type { DiaryTag } from '../../types'
 interface DiaryTimelineProps {
   popularTags: DiaryTag[]
   onEntryClick?: (entry: any) => void
+  selectedDate?: string
+  onClearDateFilter?: () => void
 }
 
 const ITEMS_PER_PAGE = 10
@@ -23,6 +28,8 @@ const ITEMS_PER_PAGE = 10
 export const DiaryTimeline: React.FC<DiaryTimelineProps> = ({
   popularTags,
   onEntryClick,
+  selectedDate,
+  onClearDateFilter,
 }) => {
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([])
   const [offset, setOffset] = useState(0)
@@ -30,6 +37,7 @@ export const DiaryTimeline: React.FC<DiaryTimelineProps> = ({
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const prevOffsetRef = useRef(0)
   const prevTagsRef = useRef<number[]>([])
+  const prevDateRef = useRef<string | undefined>(undefined)
 
   // Build tags query string
   const tagsQuery = selectedTagIds.length > 0 ? selectedTagIds.join(',') : undefined
@@ -39,15 +47,17 @@ export const DiaryTimeline: React.FC<DiaryTimelineProps> = ({
     limit: ITEMS_PER_PAGE,
     offset: offset,
     tags: tagsQuery,
+    date: selectedDate,
   })
 
   // Update allEntries when new data arrives
   useEffect(() => {
     if (entries) {
       const tagsChanged = JSON.stringify(prevTagsRef.current) !== JSON.stringify(selectedTagIds)
+      const dateChanged = prevDateRef.current !== selectedDate
       const offsetReset = prevOffsetRef.current > offset
 
-      if (offset === 0 || tagsChanged || offsetReset) {
+      if (offset === 0 || tagsChanged || dateChanged || offsetReset) {
         // Reset entries on new filter or initial load
         setAllEntries(entries)
       } else {
@@ -61,17 +71,20 @@ export const DiaryTimeline: React.FC<DiaryTimelineProps> = ({
       }
       prevOffsetRef.current = offset
       prevTagsRef.current = [...selectedTagIds]
+      prevDateRef.current = selectedDate
     }
-  }, [entries, offset, selectedTagIds])
+  }, [entries, offset, selectedTagIds, selectedDate])
 
   // Reset offset when filters change
   useEffect(() => {
     const tagsChanged = JSON.stringify(prevTagsRef.current) !== JSON.stringify(selectedTagIds)
-    if (tagsChanged && selectedTagIds.length !== prevTagsRef.current.length) {
+    const dateChanged = prevDateRef.current !== selectedDate
+
+    if ((tagsChanged && selectedTagIds.length !== prevTagsRef.current.length) || dateChanged) {
       setOffset(0)
       setAllEntries([])
     }
-  }, [selectedTagIds])
+  }, [selectedTagIds, selectedDate])
 
   // Infinite scroll with Intersection Observer
   useEffect(() => {
@@ -136,6 +149,32 @@ export const DiaryTimeline: React.FC<DiaryTimelineProps> = ({
           <TagManager popularTags={popularTags} onApply={handleTagFilter} selectedTagIds={selectedTagIds} />
         </Box>
 
+        {/* Date Filter Badge */}
+        {selectedDate && (
+          <HStack
+            spacing={2}
+            px={4}
+            py={2}
+            bg={useColorModeValue('blue.50', 'blue.900')}
+            borderRadius="md"
+            justifyContent="space-between"
+          >
+            <Text fontSize="sm" color={useColorModeValue('blue.700', 'blue.200')}>
+              📅 Showing entries for: <strong>{new Date(selectedDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</strong>
+            </Text>
+            {onClearDateFilter && (
+              <Button
+                size="xs"
+                variant="ghost"
+                colorScheme="blue"
+                onClick={onClearDateFilter}
+              >
+                Clear
+              </Button>
+            )}
+          </HStack>
+        )}
+
         {/* Loading State */}
         {isLoading && allEntries.length === 0 && (
           <Center py={12}>
@@ -155,14 +194,39 @@ export const DiaryTimeline: React.FC<DiaryTimelineProps> = ({
 
         {/* Empty State */}
         {!isLoading && allEntries.length === 0 && !error && (
-          <Center py={12} bg={emptyStateBg} borderRadius="md">
-            <VStack spacing={2}>
-              <Text fontSize="lg" fontWeight="semibold" color={textSecondary}>
-                No entries yet
-              </Text>
-              <Text fontSize="sm" color={textSecondary} textAlign="center">
-                Start by logging a mood or writing in your diary!
-              </Text>
+          <Center py={16}>
+            <VStack spacing={6} maxW="md" textAlign="center">
+              <Box
+                w="120px"
+                h="120px"
+                borderRadius="full"
+                bg={useColorModeValue('purple.50', 'purple.900')}
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+              >
+                <Text fontSize="5xl">📝</Text>
+              </Box>
+              <VStack spacing={3}>
+                <Text fontSize="2xl" fontWeight="bold" color={textSecondary}>
+                  No entries yet
+                </Text>
+                <Text fontSize="md" color={textSecondary} maxW="sm">
+                  Start documenting your emotional journey! Create your first diary entry by clicking a date on the calendar or logging a mood check-in.
+                </Text>
+              </VStack>
+              <HStack spacing={4} pt={2}>
+                <Box
+                  px={4}
+                  py={2}
+                  bg={useColorModeValue('purple.100', 'purple.800')}
+                  borderRadius="md"
+                  fontSize="sm"
+                  color={useColorModeValue('purple.700', 'purple.200')}
+                >
+                  💡 Tip: Check out the calendar →
+                </Box>
+              </HStack>
             </VStack>
           </Center>
         )}
