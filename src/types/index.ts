@@ -256,6 +256,7 @@ export interface GetDiaryEntriesRequest {
   limit?: number;
   offset?: number;
   tags?: string;
+  date?: string;
 }
 
 // Pet

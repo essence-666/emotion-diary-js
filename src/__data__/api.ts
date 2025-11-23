@@ -32,6 +32,67 @@ interface GenerateImageRequest {
 // Helper to get token from localStorage
 const getToken = () => localStorage.getItem('auth_token')
 
+// Development mode check - TEMPORARILY FORCED TO TRUE
+// The backend API endpoints for diary aren't implemented yet, so we use mocks
+// TODO: Change to `process.env.NODE_ENV !== 'production'` when backend is ready
+const isDevelopment = true
+
+// Debug logging (remove in production)
+if (typeof window !== 'undefined') {
+  console.log('[API] Mock mode enabled:', isDevelopment)
+}
+
+// Mock data generators
+const generateMockDiaryEntries = (count: number = 5): DiaryEntry[] => {
+  const emotions = ['happy', 'sad', 'calm', 'stressed', 'excited', 'angry']
+  // Lighter, calmer colors for tags that work well in both light and dark modes
+  const tags = [
+    { id: 1, name: 'work', color: '#8B5CF6' }, // purple.500
+    { id: 2, name: 'family', color: '#10B981' }, // green.500
+    { id: 3, name: 'health', color: '#F59E0B' }, // amber.500
+    { id: 4, name: 'personal', color: '#EC4899' }, // pink.500
+    { id: 5, name: 'hobby', color: '#06B6D4' }, // cyan.500
+  ]
+  const sampleContents = [
+    'Had a productive day at work. Managed to complete the project ahead of schedule and received positive feedback from the team.',
+    'Spent quality time with family today. We went to the park and had a picnic. The weather was perfect.',
+    'Feeling stressed about upcoming deadlines. Need to focus on time management and prioritization.',
+    'Great workout session this morning! Feeling energized and ready to tackle the day.',
+    'Had a long conversation with an old friend. It was nice to catch up and reminisce about old times.',
+  ]
+
+  return Array.from({ length: count }, (_, i) => ({
+    id: i + 1,
+    user_id: 1,
+    title: i % 2 === 0 ? `Entry ${i + 1}` : null,
+    content: sampleContents[i % sampleContents.length],
+    date: new Date(Date.now() - i * 86400000).toISOString().split('T')[0],
+    tags: [tags[i % tags.length]],
+    mood_snapshot: emotions.slice(0, Math.floor(Math.random() * 3) + 1),
+    created_at: new Date(Date.now() - i * 86400000).toISOString(),
+    updated_at: new Date(Date.now() - i * 86400000).toISOString(),
+  }))
+}
+
+const generateMockHeatmapData = (year: number, month: number): MonthlyHeatmapData[] => {
+  const daysInMonth = new Date(year, month, 0).getDate()
+  const emotions = ['happy', 'sad', 'calm', 'stressed', 'excited', 'angry']
+
+  return Array.from({ length: daysInMonth }, (_, i) => {
+    const day = i + 1
+    const date = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    const emotionCount = Math.floor(Math.random() * 8) // 0-7 emotions per day
+
+    return {
+      date,
+      emotion_count: emotionCount,
+      emotions: emotionCount > 0
+        ? emotions.slice(0, Math.min(emotionCount, emotions.length))
+        : [],
+    }
+  })
+}
+
 export const api = createApi({
   baseQuery: fetchBaseQuery({
     baseUrl: '/api',
@@ -151,13 +212,39 @@ export const api = createApi({
     // Diary Endpoints
     // ========================================================================
     getDiaryEntries: builder.query<DiaryEntry[], GetDiaryEntriesRequest>({
-      query: ({ limit = 10, offset = 0, tags }) => {
+      queryFn: async ({ limit = 10, offset = 0, tags, date }, { getState }, extraOptions, baseQuery) => {
+        // Development mock
+        if (isDevelopment) {
+          await new Promise((resolve) => setTimeout(resolve, 500))
+          let allEntries = generateMockDiaryEntries(20)
+
+          // Filter by date if provided
+          if (date) {
+            allEntries = allEntries.filter((entry) => entry.date === date)
+          }
+
+          // Filter by tags if provided (simplified - just checks if any tag matches)
+          if (tags) {
+            const tagIds = tags.split(',').map(Number)
+            allEntries = allEntries.filter((entry) =>
+              entry.tags?.some((tag) => tagIds.includes(tag.id))
+            )
+          }
+
+          const paginatedEntries = allEntries.slice(offset, offset + limit)
+          return { data: paginatedEntries }
+        }
+
+        // Production: use real API
         const params = new URLSearchParams({
           limit: limit.toString(),
           offset: offset.toString(),
         })
         if (tags) params.append('tags', tags)
-        return `/diary?${params.toString()}`
+        if (date) params.append('date', date)
+
+        const result = await baseQuery(`/diary?${params.toString()}`)
+        return result.data ? { data: result.data as DiaryEntry[] } : { error: result.error }
       },
       providesTags: ['Diary'],
     }),
@@ -188,7 +275,18 @@ export const api = createApi({
       invalidatesTags: ['Diary'],
     }),
     getMonthlyHeatmap: builder.query<MonthlyHeatmapData[], { year: number; month: number }>({
-      query: ({ year, month }) => `/diary/monthly?year=${year}&month=${month}`,
+      queryFn: async ({ year, month }, { getState }, extraOptions, baseQuery) => {
+        // Development mock
+        if (isDevelopment) {
+          await new Promise((resolve) => setTimeout(resolve, 300))
+          const mockData = generateMockHeatmapData(year, month)
+          return { data: mockData }
+        }
+
+        // Production: use real API
+        const result = await baseQuery(`/diary/monthly?year=${year}&month=${month}`)
+        return result.data ? { data: result.data as MonthlyHeatmapData[] } : { error: result.error }
+      },
       providesTags: ['Diary'],
     }),
 
