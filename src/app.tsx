@@ -15,21 +15,11 @@ import theme from './theme';
 // Initialize mock auth in development
 import './utils/mockAuth';
 import DiaryPage from './pages/DiaryPage'
+import CheckInPage from './pages/CheckInPage'
+import SettingsPage from './pages/SettingsPage'
+import PetPage from './pages/PetPage'
 
 // Placeholder pages
-const CheckinPage = () => (
-  <Box>
-    <Heading mb={4}>Mood Check-in</Heading>
-    <p>Check-in component will go here...</p>
-  </Box>
-);
-
-const PetPage = () => (
-  <Box>
-    <Heading mb={4}>My Pet</Heading>
-    <p>Pet component will go here...</p>
-  </Box>
-);
 
 const AnalyticsPage = () => (
   <Box>
@@ -38,12 +28,6 @@ const AnalyticsPage = () => (
   </Box>
 );
 
-const SettingsPage = () => (
-  <Box>
-    <Heading mb={4}>Settings</Heading>
-    <p>Settings component will go here...</p>
-  </Box>
-);
 
 const App = () => {
   return (
@@ -80,7 +64,7 @@ const App = () => {
                 element={
                   <ProtectedRoute>
                     <AppLayout>
-                      <CheckinPage />
+                      <CheckInPage />
                     </AppLayout>
                   </ProtectedRoute>
                 }

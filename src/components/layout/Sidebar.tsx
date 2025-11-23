@@ -95,9 +95,7 @@ export const Sidebar: React.FC = () => {
       <Box p={isCollapsed ? 4 : 6} borderBottom="1px" borderColor={borderColor}>
         {isCollapsed ? (
           <Flex justify="center">
-            <Text fontSize="2xl" fontWeight="bold" color={headerText}>
-              📔
-            </Text>
+            <Icon as={FiBook} boxSize={6} color={headerText} />
           </Flex>
         ) : (
           <HStack justify="space-between">

@@ -12,6 +12,7 @@ const petRouter = require('./pet')
 const insightsRouter = require('./insights')
 const promptsRouter = require('./prompts')
 const subscriptionsRouter = require('./subsctiptions')
+const preferencesRouter = require('./preferences')
 
 const router = Router()
 
@@ -29,6 +30,7 @@ router.use('/pet', petRouter)
 router.use('/insights', insightsRouter)
 router.use('/prompts', promptsRouter)
 router.use('/subscriptions', subscriptionsRouter)
+router.use('/preferences', preferencesRouter)
 
 // 404 handler
 router.use((req, res) => {
