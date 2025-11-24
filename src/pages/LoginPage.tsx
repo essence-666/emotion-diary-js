@@ -26,6 +26,7 @@ export const LoginPage: React.FC = () => {
             textAlign="center"
             bgGradient="linear(to-r, purple.600, pink.600)"
             bgClip="text"
+            paddingBottom="10px"
             fontWeight="extrabold"
           >
             Emotion Diary
