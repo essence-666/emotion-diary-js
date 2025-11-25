@@ -1,0 +1,30 @@
+name: Backend Deploy
+
+on:
+  push:
+    branches: [ api ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: hype   
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Docker Compose (if missing)
+        run: |
+          if ! command -v docker compose >/dev/null 2>&1; then
+            echo "docker compose not found — installing..."
+            sudo apt-get update
+            sudo apt-get install -y docker-compose-plugin
+          fi
+
+      - name: Build and restart containers
+        run: |
+          docker compose -f docker-compose.yml down || true
+          docker compose -f docker-compose.yml up -d --build
+
+      - name: Check running containers
+        run: docker ps -a
