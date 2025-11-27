@@ -29,9 +29,9 @@ router.get('/daily', authMiddleware, async (req, res, next) => {
 
     // Check if user already responded to today's prompt
     const existingResponse = await pool.query(
-      `SELECT rr.id, rr.prompt_id, rr.response_text, rr.response_date
+      `SELECT rr.id, rr.prompt_id, rr.response, rr.created_at
        FROM reflection_responses rr
-       WHERE rr.user_id = $1 AND rr.response_date = $2
+       WHERE rr.user_id = $1 AND DATE(rr.created_at) = $2
        ORDER BY rr.created_at DESC
        LIMIT 1`,
       [userId, today]
@@ -46,19 +46,13 @@ router.get('/daily', authMiddleware, async (req, res, next) => {
       )
       prompt = promptResult.rows[0]
     } else {
-      // Get a random prompt (or contextual based on user's recent emotions)
-      // For now, get a random non-premium prompt or premium if user is premium
-      const tierFilter = req.user.tier === 'free' 
-        ? "AND is_premium = false" 
-        : ""
-
+      // Get a random prompt
       const promptResult = await pool.query(
         `SELECT * FROM reflection_prompts
          WHERE id NOT IN (
            SELECT prompt_id FROM reflection_responses 
-           WHERE user_id = $1 AND response_date >= CURRENT_DATE - INTERVAL '7 days'
+           WHERE user_id = $1 AND created_at >= CURRENT_DATE - INTERVAL '7 days'
          )
-         ${tierFilter}
          ORDER BY RANDOM()
          LIMIT 1`,
         [userId]
@@ -68,7 +62,6 @@ router.get('/daily', authMiddleware, async (req, res, next) => {
         // Fallback: get any prompt
         const fallbackResult = await pool.query(
           `SELECT * FROM reflection_prompts
-           ${tierFilter ? `WHERE ${tierFilter.replace('AND ', '')}` : ''}
            ORDER BY RANDOM()
            LIMIT 1`
         )
@@ -79,28 +72,31 @@ router.get('/daily', authMiddleware, async (req, res, next) => {
     }
 
     if (!prompt) {
-      return res.status(404).json({
-        ok: false,
-        message: 'Промпт не найден'
-      })
+      // If still no prompt, create a default one
+      const defaultPrompt = {
+        id: 0,
+        prompt: "Как вы себя чувствуете сегодня и почему?",
+        created_at: new Date()
+      }
+      prompt = defaultPrompt
     }
 
     res.json({
       ok: true,
       prompt: {
         id: prompt.id,
-        prompt_text: prompt.prompt_text,
-        category: prompt.category,
-        is_premium: prompt.is_premium
+        prompt_text: prompt.prompt,
+        created_at: prompt.created_at
       },
       has_responded: existingResponse.rows.length > 0,
       existing_response: existingResponse.rows.length > 0 ? {
         id: existingResponse.rows[0].id,
-        response_text: existingResponse.rows[0].response_text,
-        response_date: existingResponse.rows[0].response_date
+        response: existingResponse.rows[0].response,
+        created_at: existingResponse.rows[0].created_at
       } : null
     })
   } catch (err) {
+    console.error('Error in /prompts/daily:', err)
     next(err)
   }
 })
@@ -127,9 +123,9 @@ router.get('/daily', authMiddleware, async (req, res, next) => {
  *           schema:
  *             type: object
  *             required:
- *               - response_text
+ *               - response
  *             properties:
- *               response_text:
+ *               response:
  *                 type: string
  *                 description: Текст ответа
  *                 example: "Сегодня меня вдохновила встреча с друзьями..."
@@ -143,81 +139,73 @@ router.post('/:id/response', authMiddleware, async (req, res, next) => {
   try {
     const userId = req.user.id
     const promptId = parseInt(req.params.id)
-    const { response_text } = req.body
+    const { response } = req.body
 
-    if (!response_text || response_text.trim().length === 0) {
+    if (!response || response.trim().length === 0) {
       return res.status(400).json({
         ok: false,
-        message: 'response_text обязателен'
+        message: 'response обязателен'
       })
     }
 
-    // Verify prompt exists
-    const promptResult = await pool.query(
-      'SELECT * FROM reflection_prompts WHERE id = $1',
-      [promptId]
-    )
+    // For default prompt (id = 0), we'll use prompt_id = 1
+    const actualPromptId = promptId === 0 ? 1 : promptId
 
-    if (promptResult.rows.length === 0) {
-      return res.status(404).json({
-        ok: false,
-        message: 'Промпт не найден'
-      })
-    }
+    // Verify prompt exists (skip for default prompt)
+    if (actualPromptId !== 0) {
+      const promptResult = await pool.query(
+        'SELECT * FROM reflection_prompts WHERE id = $1',
+        [actualPromptId]
+      )
 
-    const prompt = promptResult.rows[0]
-
-    // Check if prompt is premium and user has access
-    if (prompt.is_premium && req.user.tier === 'free') {
-      return res.status(403).json({
-        ok: false,
-        message: 'Этот промпт доступен только для Premium подписчиков'
-      })
+      if (promptResult.rows.length === 0) {
+        return res.status(404).json({
+          ok: false,
+          message: 'Промпт не найден'
+        })
+      }
     }
 
     // Check if user already responded today
     const today = new Date().toISOString().split('T')[0]
     const existingResponse = await pool.query(
-      'SELECT id FROM reflection_responses WHERE user_id = $1 AND prompt_id = $2 AND response_date = $3',
-      [userId, promptId, today]
+      'SELECT id FROM reflection_responses WHERE user_id = $1 AND prompt_id = $2 AND DATE(created_at) = $3',
+      [userId, actualPromptId, today]
     )
 
-    let response
+    let responseResult
     if (existingResponse.rows.length > 0) {
       // Update existing response
       const updateResult = await pool.query(
         `UPDATE reflection_responses 
-         SET response_text = $1, created_at = CURRENT_TIMESTAMP
+         SET response = $1, created_at = CURRENT_TIMESTAMP
          WHERE id = $2
          RETURNING *`,
-        [response_text.trim(), existingResponse.rows[0].id]
+        [response.trim(), existingResponse.rows[0].id]
       )
-      response = updateResult.rows[0]
+      responseResult = updateResult.rows[0]
     } else {
       // Create new response
       const createResult = await pool.query(
-        `INSERT INTO reflection_responses (user_id, prompt_id, response_text, response_date)
-         VALUES ($1, $2, $3, CURRENT_DATE)
+        `INSERT INTO reflection_responses (user_id, prompt_id, response)
+         VALUES ($1, $2, $3)
          RETURNING *`,
-        [userId, promptId, response_text.trim()]
+        [userId, actualPromptId, response.trim()]
       )
-      response = createResult.rows[0]
+      responseResult = createResult.rows[0]
     }
-
-    // Optionally create or link to diary entry
-    // This could be done automatically or on user request
 
     res.status(201).json({
       ok: true,
       response: {
-        id: response.id,
-        prompt_id: response.prompt_id,
-        response_text: response.response_text,
-        response_date: response.response_date,
-        created_at: response.created_at
+        id: responseResult.id,
+        prompt_id: responseResult.prompt_id,
+        response: responseResult.response,
+        created_at: responseResult.created_at
       }
     })
   } catch (err) {
+    console.error('Error in /prompts/:id/response:', err)
     next(err)
   }
 })
@@ -256,12 +244,9 @@ router.get('/responses', authMiddleware, async (req, res, next) => {
       `SELECT 
         rr.id,
         rr.prompt_id,
-        rr.response_text,
-        rr.response_date,
+        rr.response,
         rr.created_at,
-        rr.associated_diary_entry_id,
-        rp.prompt_text,
-        rp.category
+        rp.prompt as prompt_text
        FROM reflection_responses rr
        JOIN reflection_prompts rp ON rr.prompt_id = rp.id
        WHERE rr.user_id = $1
@@ -281,13 +266,10 @@ router.get('/responses', authMiddleware, async (req, res, next) => {
         id: row.id,
         prompt: {
           id: row.prompt_id,
-          prompt_text: row.prompt_text,
-          category: row.category
+          prompt_text: row.prompt_text
         },
-        response_text: row.response_text,
-        response_date: row.response_date,
-        created_at: row.created_at,
-        associated_diary_entry_id: row.associated_diary_entry_id
+        response: row.response,
+        created_at: row.created_at
       })),
       pagination: {
         page,
@@ -297,9 +279,90 @@ router.get('/responses', authMiddleware, async (req, res, next) => {
       }
     })
   } catch (err) {
+    console.error('Error in /prompts/responses:', err)
+    next(err)
+  }
+})
+
+/**
+ * @swagger
+ * /prompts/random:
+ *   get:
+ *     summary: Получить случайный промпт
+ *     tags: [Prompts]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Случайный промпт
+ */
+router.get('/random', authMiddleware, async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      `SELECT * FROM reflection_prompts 
+       ORDER BY RANDOM() 
+       LIMIT 1`
+    )
+
+    if (result.rows.length === 0) {
+      // Return default prompt if no prompts in database
+      return res.json({
+        ok: true,
+        prompt: {
+          id: 0,
+          prompt_text: "Как вы себя чувствуете сегодня и почему?",
+          created_at: new Date()
+        }
+      })
+    }
+
+    const prompt = result.rows[0]
+
+    res.json({
+      ok: true,
+      prompt: {
+        id: prompt.id,
+        prompt_text: prompt.prompt,
+        created_at: prompt.created_at
+      }
+    })
+  } catch (err) {
+    console.error('Error in /prompts/random:', err)
+    next(err)
+  }
+})
+
+/**
+ * @swagger
+ * /prompts/all:
+ *   get:
+ *     summary: Получить все промпты
+ *     tags: [Prompts]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Список всех промптов
+ */
+router.get('/all', authMiddleware, async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      `SELECT * FROM reflection_prompts 
+       ORDER BY created_at DESC`
+    )
+
+    res.json({
+      ok: true,
+      prompts: result.rows.map(prompt => ({
+        id: prompt.id,
+        prompt_text: prompt.prompt,
+        created_at: prompt.created_at
+      }))
+    })
+  } catch (err) {
+    console.error('Error in /prompts/all:', err)
     next(err)
   }
 })
 
 module.exports = router
-

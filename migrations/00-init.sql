@@ -193,3 +193,46 @@ INSERT INTO tags (name, category, emoji) VALUES
 ('Mood', 'emotions', '😊'),
 ('Stress', 'emotions', '😰'),
 ('Sleep', 'health', '😴');
+
+-- Добавить updated_at в таблицу users
+ALTER TABLE users ADD COLUMN updated_at TIMESTAMP DEFAULT NOW();
+
+-- Создать индексы для улучшения производительности
+CREATE INDEX idx_mood_checkins_user_id ON mood_checkins(user_id);
+CREATE INDEX idx_diary_entries_user_id ON diary_entries(user_id);
+CREATE INDEX idx_user_preferences_user_id ON user_preferences(user_id);
+CREATE INDEX idx_emotional_insights_user_id ON emotional_insights(user_id);
+CREATE INDEX idx_reflection_responses_user_id ON reflection_responses(user_id);
+
+-- Добавить индексы для улучшения производительности
+CREATE INDEX idx_reflection_responses_user_id ON reflection_responses(user_id);
+CREATE INDEX idx_reflection_responses_created_at ON reflection_responses(created_at DESC);
+CREATE INDEX idx_reflection_responses_prompt_id ON reflection_responses(prompt_id);
+CREATE INDEX idx_reflection_prompts_category ON reflection_prompts(category);
+
+-- Добавить колонку для метаданных промптов (опционально)
+ALTER TABLE reflection_prompts ADD COLUMN difficulty_level VARCHAR(20) DEFAULT 'medium';
+ALTER TABLE reflection_prompts ADD COLUMN estimated_time_minutes INTEGER DEFAULT 5;
+ALTER TABLE reflection_prompts ADD COLUMN tags TEXT[] DEFAULT '{}';
+
+-- Добавить несколько демо-промптов если их нет
+INSERT INTO reflection_prompts (prompt, category) VALUES
+('Что сегодня вызвало у вас самые сильные эмоции и почему?', 'emotions'),
+('Опишите момент сегодняшнего дня, за который вы чувствуете благодарность', 'gratitude'),
+('Какое небольшое достижение сегодня сделало ваш день лучше?', 'achievements'),
+('Что вы узнали о себе сегодня?', 'self_discovery'),
+('Как вы позаботились о своем ментальном здоровье сегодня?', 'self_care'),
+('Опишите вызов, с которым вы столкнулись сегодня, и как вы с ним справились', 'challenges'),
+('Какая мысль или идея сегодня вас больше всего вдохновила?', 'inspiration'),
+('Что бы вы хотели сделать по-другому завтра?', 'reflection'),
+('Как вы поддерживали или получали поддержку от других сегодня?', 'relationships'),
+('Что сегодня помогло вам чувствовать себя в гармонии с собой?', 'balance');
+
+-- Создать таблицу для избранных промптов пользователя (опционально)
+CREATE TABLE user_favorite_prompts (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    prompt_id INTEGER REFERENCES reflection_prompts(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, prompt_id)
+);

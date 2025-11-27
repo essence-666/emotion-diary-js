@@ -14,9 +14,13 @@ const options = {
     },
     servers: [
       {
-        url: 'http://localhost:8099/api',
+        url: 'http://localhost:5000/api/v1',
         description: 'Локальный сервер разработки',
       },
+      {
+        url: 'https://emotion-diary.aquaf1na.fun/api/v1/',
+        description: 'Продовый сервер',
+      }
     ],
     tags: [
       {

@@ -17,8 +17,6 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_key_change_in_productio
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h'
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d'
 
-
-
 // Middleware: Verify JWT token (can be used in other routes)
 const authMiddleware = (req, res, next) => {
   const authHeader = req.headers.authorization
@@ -159,6 +157,20 @@ router.post('/register', async (req, res, next) => {
       })
     }
 
+    if (username.length < 3) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Username должен содержать минимум 3 символа'
+      })
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Неверный формат email'
+      })
+    }
+
     // Check if user exists
     const existingUser = await pool.query(
       'SELECT id FROM users WHERE email = $1 OR username = $2',
@@ -188,9 +200,6 @@ router.post('/register', async (req, res, next) => {
     // Generate tokens
     const token = generateToken(user.id, user.email, user.subscription_tier)
     const refreshToken = generateRefreshToken(user.id)
-
-    // Store refresh token (optional: in database or Redis)
-    // For now, we'll return it to the client
 
     res.status(201).json({
       ok: true,
@@ -395,7 +404,7 @@ router.post('/refresh', async (req, res, next) => {
  *       200:
  *         description: Успешный выход
  */
-router.post('/logout', async (req, res, next) => {
+router.post('/logout', authMiddleware, async (req, res, next) => {
   try {
     // In a production system, you would invalidate the refresh token
     // by storing it in a blacklist (Redis) or marking it as used in the database
@@ -405,6 +414,48 @@ router.post('/logout', async (req, res, next) => {
       message: 'Выход выполнен успешно'
     })
   } catch (err) {
+    next(err)
+  }
+})
+
+/**
+ * @swagger
+ * /auth/profile:
+ *   get:
+ *     summary: Получить профиль пользователя
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Профиль пользователя
+ *       401:
+ *         description: Неавторизован
+ */
+router.get('/profile', authMiddleware, async (req, res, next) => {
+  try {
+    const userId = req.user.id
+
+    const result = await pool.query(
+      'SELECT id, email, username, subscription_tier, created_at, updated_at FROM users WHERE id = $1',
+      [userId]
+    )
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        ok: false,
+        message: 'Пользователь не найден'
+      })
+    }
+
+    const user = result.rows[0]
+
+    res.json({
+      ok: true,
+      user
+    })
+  } catch (err) {
+    console.error('[Auth API] Error getting profile:', err)
     next(err)
   }
 })
@@ -737,7 +788,7 @@ router.get('/export-data', authMiddleware, async (req, res, next) => {
 
     // Fetch all user data
     const userResult = await pool.query(
-      'SELECT id, email, username, subscription_tier, created_at FROM users WHERE id = $1',
+      'SELECT id, email, username, subscription_tier, created_at, updated_at FROM users WHERE id = $1',
       [userId]
     )
 
@@ -747,12 +798,24 @@ router.get('/export-data', authMiddleware, async (req, res, next) => {
     )
 
     const checkinsResult = await pool.query(
-      'SELECT * FROM mood_checkins WHERE user_id = $1 ORDER BY created_at DESC',
+      `SELECT mc.*, e.name as emotion_name, e.emoji as emotion_emoji 
+       FROM mood_checkins mc 
+       LEFT JOIN emotions e ON mc.emotion_id = e.id 
+       WHERE mc.user_id = $1 
+       ORDER BY mc.created_at DESC`,
       [userId]
     )
 
     const diaryResult = await pool.query(
-      'SELECT * FROM diary_entries WHERE user_id = $1 ORDER BY created_at DESC',
+      `SELECT de.*, 
+       ARRAY_AGG(DISTINCT t.name) as tags,
+       ARRAY_AGG(DISTINCT t.emoji) as tag_emojis
+       FROM diary_entries de
+       LEFT JOIN diary_entry_tags det ON de.id = det.entry_id
+       LEFT JOIN tags t ON det.tag_id = t.id
+       WHERE de.user_id = $1 
+       GROUP BY de.id
+       ORDER BY de.created_at DESC`,
       [userId]
     )
 
@@ -766,6 +829,20 @@ router.get('/export-data', authMiddleware, async (req, res, next) => {
       [userId]
     )
 
+    const insightsResult = await pool.query(
+      'SELECT * FROM emotional_insights WHERE user_id = $1 ORDER BY created_at DESC',
+      [userId]
+    )
+
+    const reflectionsResult = await pool.query(
+      `SELECT rr.*, rp.prompt 
+       FROM reflection_responses rr 
+       LEFT JOIN reflection_prompts rp ON rr.prompt_id = rp.id 
+       WHERE rr.user_id = $1 
+       ORDER BY rr.created_at DESC`,
+      [userId]
+    )
+
     res.json({
       ok: true,
       data: {
@@ -775,6 +852,8 @@ router.get('/export-data', authMiddleware, async (req, res, next) => {
         diary_entries: diaryResult.rows || [],
         pet: petResult.rows[0] || null,
         streak: streakResult.rows[0] || null,
+        insights: insightsResult.rows || [],
+        reflections: reflectionsResult.rows || [],
         exported_at: new Date().toISOString()
       }
     })
@@ -783,7 +862,6 @@ router.get('/export-data', authMiddleware, async (req, res, next) => {
     next(err)
   }
 })
-
 
 // Export router and middleware
 module.exports = router

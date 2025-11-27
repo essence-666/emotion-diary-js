@@ -1,10 +1,10 @@
 services:
-  backend:
-    container_name: backend
-    build:
-      context: .
-    ports:
-      - "5000:5000"
+  # backend:
+  #   container_name: backend
+  #   build:
+  #     context: .
+  #   ports:
+  #     - "5000:5000"
 
   postgres:
     container_name: postgres

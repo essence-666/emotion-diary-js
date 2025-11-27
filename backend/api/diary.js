@@ -212,7 +212,7 @@ router.post('/', authMiddleware, async (req, res, next) => {
  *         required: true
  *         schema:
  *           type: string
- *           format: uuid
+ *           format: integer
  *     requestBody:
  *       required: true
  *       content:
@@ -320,7 +320,7 @@ router.put('/entries/:id', authMiddleware, async (req, res, next) => {
  *         required: true
  *         schema:
  *           type: string
- *           format: uuid
+ *           format: integer
  *     responses:
  *       200:
  *         description: Запись удалена
