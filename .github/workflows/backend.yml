@@ -23,8 +23,8 @@ jobs:
 
       - name: Build and restart containers
         run: |
-          docker compose -f docker-compose.yml down || true
-          docker compose -f docker-compose.yml up -d --build
+          docker-compose -f docker-compose.yml down || true
+          docker-compose -f docker-compose.yml up -d --build
 
       - name: Check running containers
         run: docker ps -a
