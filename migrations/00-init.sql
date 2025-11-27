@@ -4,7 +4,9 @@ CREATE TABLE users (
     email TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT NOW(),
-    subscription_tier TEXT DEFAULT 'free'
+    
+    subscription_tier TEXT DEFAULT 'free',
+    subscription_expires_at TIMESTAMP
 );
 
 CREATE TABLE emotions (
@@ -90,31 +92,82 @@ CREATE TABLE user_streaks (
 
 CREATE TABLE subscriptions (
     id SERIAL PRIMARY KEY,
-    user_id INT REFERENCES users(id),
+    user_id INT NOT NULL REFERENCES users(id),
+
+    tier TEXT NOT NULL,
     stripe_subscription_id TEXT,
-    tier TEXT,
-    active BOOLEAN DEFAULT true,
+    payment_method TEXT DEFAULT 'stripe',
+
+    start_date TIMESTAMP NOT NULL DEFAULT NOW(),
+    end_date TIMESTAMP,
+
     created_at TIMESTAMP DEFAULT NOW()
 );
 
 CREATE TABLE emotional_insights (
     id SERIAL PRIMARY KEY,
-    user_id INT REFERENCES users(id),
-    insight TEXT,
-    created_at TIMESTAMP DEFAULT NOW()
+
+    user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+
+    -- weekly_summary | mood_trigger | recommendation
+    insight_type TEXT NOT NULL,
+
+    -- Сам текст инсайта или рекомендации
+    content TEXT NOT NULL,
+
+    -- начало периода (неделя, месяц и т.д.)
+    period_start_date DATE NOT NULL,
+
+    generated_at TIMESTAMP DEFAULT NOW()
 );
+
+-- Индекс по пользователю и типу
+CREATE INDEX idx_emotional_insights_user_type
+    ON emotional_insights(user_id, insight_type);
+
+-- Индекс по дате периода
+CREATE INDEX idx_emotional_insights_period
+    ON emotional_insights(period_start_date);
 
 CREATE TABLE reflection_prompts (
     id SERIAL PRIMARY KEY,
-    prompt TEXT NOT NULL,
+
+    -- Текст промпта
+    prompt_text TEXT NOT NULL,
+
+    -- Категория: "self-reflection", "productivity", "gratitude", etc.
+    category TEXT DEFAULT 'general',
+
+    -- Доступно только Premium
+    is_premium BOOLEAN DEFAULT FALSE,
+
     created_at TIMESTAMP DEFAULT NOW()
 );
 
+INSERT INTO reflection_prompts (prompt_text, category, is_premium) VALUES
+('Сегодня напишите три вещи, за которые вы благодарны.', 'gratitude', false),
+('Что сделало вас счастливым сегодня?', 'self-reflection', false),
+('Опишите один случай, когда вы почувствовали гордость за себя.', 'self-reflection', false),
+('Какие ваши цели на завтра и как вы к ним приблизитесь?', 'productivity', false),
+('Напишите одно положительное событие, которое произошло за неделю.', 'gratitude', false),
+('Какое ваше любимое воспоминание о прошедшем месяце?', 'self-reflection', false),
+('Что вы можете сделать сегодня, чтобы улучшить настроение?', 'self-reflection', false),
+('Составьте короткий список того, что помогает вам расслабиться.', 'stress_management', false);
+
 CREATE TABLE reflection_responses (
     id SERIAL PRIMARY KEY,
-    user_id INT REFERENCES users(id),
-    prompt_id INT REFERENCES reflection_prompts(id),
-    response TEXT NOT NULL,
+
+    user_id INT REFERENCES users(id) ON DELETE CASCADE,
+    prompt_id INT REFERENCES reflection_prompts(id) ON DELETE CASCADE,
+
+    response_text TEXT NOT NULL,
+
+    -- Дата, к которой относится ответ (для "одного ответа в день")
+    response_date DATE DEFAULT CURRENT_DATE,
+
+    -- Для связи с дневником (по желанию)
+    associated_diary_entry_id INT REFERENCES diary_entries(id),
+
     created_at TIMESTAMP DEFAULT NOW()
 );
 
