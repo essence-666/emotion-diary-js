@@ -1,8 +1,8 @@
 FROM node:20
 
-COPY ../package.json .
+COPY ./package.json .
 
-COPY . . 
+COPY ./backend . 
 
 RUN npm install
 
