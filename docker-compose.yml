@@ -1,6 +1,5 @@
 services:
   backend:
-    dockerfile: ./backend/Dockerfile
     container_name: backend
     build:
       context: ./backend
