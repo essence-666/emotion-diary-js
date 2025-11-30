@@ -9,13 +9,12 @@ module.exports = {
       publicPath: `/static/${pkg.name}/${process.env.VERSION || pkg.version}/`
     },
     devServer: {
-      historyApiFallback: true, // Fix 404 on refresh for SPA routes
+      historyApiFallback: true,
       headers: {
         'Content-Security-Policy': "default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval'; connect-src * 'unsafe-inline'; img-src * data: blob: 'unsafe-inline'; frame-src *; style-src * 'unsafe-inline';"
       }
     }
   },
-  /* use https://admin.bro-js.ru/ to create config, navigations and features */
   navigations: {
     'emotion-diary.main': '/emotion-diary',
     'emotion-diary.login': '/emotion-diary/login',
@@ -27,6 +26,6 @@ module.exports = {
     },
   },
   config: {
-    'emotion-diary.api': '/api',
+    'emotion-diary.api': 'https://emotion-diary.aquaf1na.fun/api/v1',
   }
 }

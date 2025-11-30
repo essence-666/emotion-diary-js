@@ -25,6 +25,7 @@ import type {
   ExportDataResponse,
   User,
 } from '../types'
+import { getConfigValue } from '@brojs/cli'
 
 interface GenerateImageResponse {
   uuid: string
@@ -41,7 +42,7 @@ const getToken = () => localStorage.getItem('auth_token')
 // Development mode check - TEMPORARILY FORCED TO TRUE
 // The backend API endpoints for diary aren't implemented yet, so we use mocks
 // TODO: Change to `process.env.NODE_ENV !== 'production'` when backend is ready
-const isDevelopment = true
+const isDevelopment = process.env.NODE_ENV
 
 // Debug logging (remove in production)
 if (typeof window !== 'undefined') {
@@ -80,21 +81,27 @@ const generateMockDiaryEntries = (count: number = 5): DiaryEntry[] => {
   }))
 }
 
-const generateMockHeatmapData = (year: number, month: number): MonthlyHeatmapData[] => {
+const generateMockHeatmapData = (
+  year: number,
+  month: number,
+): MonthlyHeatmapData[] => {
   const daysInMonth = new Date(year, month, 0).getDate()
   const emotions = ['happy', 'sad', 'calm', 'stressed', 'excited', 'angry']
 
   return Array.from({ length: daysInMonth }, (_, i) => {
     const day = i + 1
-    const date = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    const date = `${year}-${String(month).padStart(2, '0')}-${String(
+      day,
+    ).padStart(2, '0')}`
     const emotionCount = Math.floor(Math.random() * 8) // 0-7 emotions per day
 
     return {
       date,
       emotion_count: emotionCount,
-      emotions: emotionCount > 0
-        ? emotions.slice(0, Math.min(emotionCount, emotions.length))
-        : [],
+      emotions:
+        emotionCount > 0
+          ? emotions.slice(0, Math.min(emotionCount, emotions.length))
+          : [],
     }
   })
 }
@@ -116,7 +123,8 @@ const generateMockCheckins = (count: number = 10): MoodCheckin[] => {
     user_id: 1,
     emotion_id: (i % 6) + 1, // Rotate through emotions 1-6
     intensity: Math.floor(Math.random() * 10) + 1, // 1-10
-    reflection_text: i % 3 === 0 ? reflectionTexts[i % reflectionTexts.length] : undefined,
+    reflection_text:
+      i % 3 === 0 ? reflectionTexts[i % reflectionTexts.length] : undefined,
     created_at: new Date(Date.now() - i * 3600000 * 4).toISOString(), // Every 4 hours
     updated_at: new Date(Date.now() - i * 3600000 * 4).toISOString(),
   }))
@@ -142,7 +150,10 @@ const generateMockPet = (): Pet => {
 const updateMockPetHappiness = (change: number): Pet => {
   mockPetState = {
     ...mockPetState,
-    happiness_level: Math.max(0, Math.min(100, mockPetState.happiness_level + change)),
+    happiness_level: Math.max(
+      0,
+      Math.min(100, mockPetState.happiness_level + change),
+    ),
     last_interaction: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }
@@ -154,8 +165,8 @@ const generateMockDialogue = (happiness: number): string => {
     return [
       'I love you so much! You make me the happiest pet! 🥰',
       'This is amazing! I feel so loved and cared for! ✨',
-      'You\'re the best! Thank you for taking such good care of me! 💖',
-      'I\'m so happy! Let\'s play together more often! 🎉',
+      "You're the best! Thank you for taking such good care of me! 💖",
+      "I'm so happy! Let's play together more often! 🎉",
     ][Math.floor(Math.random() * 4)]
   } else if (happiness >= 50) {
     return [
@@ -167,13 +178,13 @@ const generateMockDialogue = (happiness: number): string => {
   } else if (happiness >= 20) {
     return [
       'I could use some attention... 😔',
-      'It\'s been a while since we spent time together.',
+      "It's been a while since we spent time together.",
       'Are you still there? I miss you...',
       'I need some care and love.',
     ][Math.floor(Math.random() * 4)]
   } else {
     return [
-      'Please don\'t forget about me... 😢',
+      "Please don't forget about me... 😢",
       'I really need you right now...',
       'I feel so lonely... Please come back.',
       'I miss you so much... Where have you been?',
@@ -199,7 +210,7 @@ const generateMockCheckinStats = (): CheckinStats => {
 
 export const api = createApi({
   baseQuery: fetchBaseQuery({
-    baseUrl: '/api',
+    baseUrl: String(getConfigValue('emotion-diary.api') || '/api'),
     prepareHeaders: (headers) => {
       const token = getToken()
       if (token) {
@@ -246,7 +257,10 @@ export const api = createApi({
     // ========================================================================
     // Check-in Endpoints
     // ========================================================================
-    createCheckin: builder.mutation<CreateCheckinResponse, CreateCheckinRequest>({
+    createCheckin: builder.mutation<
+      CreateCheckinResponse,
+      CreateCheckinRequest
+    >({
       query: (checkin) => ({
         url: '/checkins',
         method: 'POST',
@@ -254,8 +268,16 @@ export const api = createApi({
       }),
       invalidatesTags: ['Checkin', 'Pet'],
     }),
-    getCheckins: builder.query<MoodCheckin[], { limit?: number; offset?: number }>({
-      queryFn: async ({ limit = 10, offset = 0 }, { getState }, extraOptions, baseQuery) => {
+    getCheckins: builder.query<
+      MoodCheckin[],
+      { limit?: number; offset?: number }
+    >({
+      queryFn: async (
+        { limit = 10, offset = 0 },
+        { getState },
+        extraOptions,
+        baseQuery,
+      ) => {
         // Development mock
         if (isDevelopment) {
           await new Promise((resolve) => setTimeout(resolve, 500))
@@ -265,8 +287,12 @@ export const api = createApi({
         }
 
         // Production: use real API
-        const result = await baseQuery(`/checkins?limit=${limit}&offset=${offset}`)
-        return result.data ? { data: result.data as MoodCheckin[] } : { error: result.error }
+        const result = await baseQuery(
+          `/checkins?limit=${limit}&offset=${offset}`,
+        )
+        return result.data
+          ? { data: result.data as MoodCheckin[] }
+          : { error: result.error }
       },
       providesTags: ['Checkin'],
     }),
@@ -285,7 +311,9 @@ export const api = createApi({
 
         // Production: use real API
         const result = await baseQuery('/checkins/stats')
-        return result.data ? { data: result.data as CheckinStats } : { error: result.error }
+        return result.data
+          ? { data: result.data as CheckinStats }
+          : { error: result.error }
       },
       providesTags: ['Checkin'],
     }),
@@ -294,7 +322,7 @@ export const api = createApi({
     // Pet Endpoints
     // ========================================================================
     getPet: builder.query<Pet, void>({
-      queryFn: async (arg, { getState }, extraOptions, baseQuery) => {
+      queryFn: async (arg, _, extraOptions, baseQuery) => {
         // Development mock
         if (isDevelopment) {
           await new Promise((resolve) => setTimeout(resolve, 300))
@@ -303,12 +331,14 @@ export const api = createApi({
 
         // Production: use real API
         const result = await baseQuery('/pet')
-        return result.data ? { data: result.data as Pet } : { error: result.error }
+        return result.data
+          ? { data: result.data as Pet }
+          : { error: result.error }
       },
       providesTags: ['Pet'],
     }),
     feedPet: builder.mutation<FeedPetResponse, void>({
-      queryFn: async (arg, { getState }, extraOptions, baseQuery) => {
+      queryFn: async (arg, _, extraOptions, baseQuery) => {
         // Development mock
         if (isDevelopment) {
           await new Promise((resolve) => setTimeout(resolve, 500))
@@ -318,7 +348,7 @@ export const api = createApi({
               ok: true,
               happiness_level: updatedPet.happiness_level,
               happiness_change: 10,
-            }
+            },
           }
         }
 
@@ -327,12 +357,14 @@ export const api = createApi({
           url: '/pet/feed',
           method: 'POST',
         })
-        return result.data ? { data: result.data as FeedPetResponse } : { error: result.error }
+        return result.data
+          ? { data: result.data as FeedPetResponse }
+          : { error: result.error }
       },
       invalidatesTags: ['Pet'],
     }),
     petPet: builder.mutation<FeedPetResponse, void>({
-      queryFn: async (arg, { getState }, extraOptions, baseQuery) => {
+      queryFn: async (arg, _, extraOptions, baseQuery) => {
         // Development mock
         if (isDevelopment) {
           await new Promise((resolve) => setTimeout(resolve, 400))
@@ -342,7 +374,7 @@ export const api = createApi({
               ok: true,
               happiness_level: updatedPet.happiness_level,
               happiness_change: 5,
-            }
+            },
           }
         }
 
@@ -351,12 +383,14 @@ export const api = createApi({
           url: '/pet/pet',
           method: 'POST',
         })
-        return result.data ? { data: result.data as FeedPetResponse } : { error: result.error }
+        return result.data
+          ? { data: result.data as FeedPetResponse }
+          : { error: result.error }
       },
       invalidatesTags: ['Pet'],
     }),
     talkToPet: builder.mutation<PetTalkResponse, void>({
-      queryFn: async (arg, { getState }, extraOptions, baseQuery) => {
+      queryFn: async (arg, _, extraOptions, baseQuery) => {
         // Development mock
         if (isDevelopment) {
           await new Promise((resolve) => setTimeout(resolve, 600))
@@ -367,7 +401,7 @@ export const api = createApi({
               ok: true,
               pet: updatedPet,
               dialogue,
-            } as any // Backend returns { ok, pet, response } but type expects { ok, happiness_level, dialogue }
+            } as any, // Backend returns { ok, pet, response } but type expects { ok, happiness_level, dialogue }
           }
         }
 
@@ -376,11 +410,16 @@ export const api = createApi({
           url: '/pet/talk',
           method: 'POST',
         })
-        return result.data ? { data: result.data as PetTalkResponse } : { error: result.error }
+        return result.data
+          ? { data: result.data as PetTalkResponse }
+          : { error: result.error }
       },
       invalidatesTags: ['Pet'],
     }),
-    updatePetName: builder.mutation<{ ok: boolean; name: string }, { name: string }>({
+    updatePetName: builder.mutation<
+      { ok: boolean; name: string },
+      { name: string }
+    >({
       queryFn: async ({ name }, { getState }, extraOptions, baseQuery) => {
         // Development mock
         if (isDevelopment) {
@@ -395,12 +434,19 @@ export const api = createApi({
           method: 'PUT',
           body: { name },
         })
-        return result.data ? { data: result.data as { ok: boolean; name: string } } : { error: result.error }
+        return result.data
+          ? { data: result.data as { ok: boolean; name: string } }
+          : { error: result.error }
       },
       invalidatesTags: ['Pet'],
     }),
     customizePet: builder.mutation<{ ok: boolean }, CustomizePetRequest>({
-      queryFn: async ({ cosmetic_skin }, { getState }, extraOptions, baseQuery) => {
+      queryFn: async (
+        { cosmetic_skin },
+        { getState },
+        extraOptions,
+        baseQuery,
+      ) => {
         // Development mock
         if (isDevelopment) {
           await new Promise((resolve) => setTimeout(resolve, 300))
@@ -414,7 +460,9 @@ export const api = createApi({
           method: 'POST',
           body: { cosmetic_skin },
         })
-        return result.data ? { data: result.data as { ok: boolean } } : { error: result.error }
+        return result.data
+          ? { data: result.data as { ok: boolean } }
+          : { error: result.error }
       },
       invalidatesTags: ['Pet'],
     }),
@@ -423,7 +471,12 @@ export const api = createApi({
     // Diary Endpoints
     // ========================================================================
     getDiaryEntries: builder.query<DiaryEntry[], GetDiaryEntriesRequest>({
-      queryFn: async ({ limit = 10, offset = 0, tags, date }, { getState }, extraOptions, baseQuery) => {
+      queryFn: async (
+        { limit = 10, offset = 0, tags, date },
+        { getState },
+        extraOptions,
+        baseQuery,
+      ) => {
         // Development mock
         if (isDevelopment) {
           await new Promise((resolve) => setTimeout(resolve, 500))
@@ -438,7 +491,7 @@ export const api = createApi({
           if (tags) {
             const tagIds = tags.split(',').map(Number)
             allEntries = allEntries.filter((entry) =>
-              entry.tags?.some((tag) => tagIds.includes(tag.id))
+              entry.tags?.some((tag) => tagIds.includes(tag.id)),
             )
           }
 
@@ -455,11 +508,16 @@ export const api = createApi({
         if (date) params.append('date', date)
 
         const result = await baseQuery(`/diary?${params.toString()}`)
-        return result.data ? { data: result.data as DiaryEntry[] } : { error: result.error }
+        return result.data
+          ? { data: result.data as DiaryEntry[] }
+          : { error: result.error }
       },
       providesTags: ['Diary'],
     }),
-    createDiaryEntry: builder.mutation<{ ok: boolean; entry: DiaryEntry }, CreateDiaryEntryRequest>({
+    createDiaryEntry: builder.mutation<
+      { ok: boolean; entry: DiaryEntry },
+      CreateDiaryEntryRequest
+    >({
       query: (body) => ({
         url: '/diary/entries',
         method: 'POST',
@@ -485,8 +543,16 @@ export const api = createApi({
       }),
       invalidatesTags: ['Diary'],
     }),
-    getMonthlyHeatmap: builder.query<MonthlyHeatmapData[], { year: number; month: number }>({
-      queryFn: async ({ year, month }, { getState }, extraOptions, baseQuery) => {
+    getMonthlyHeatmap: builder.query<
+      MonthlyHeatmapData[],
+      { year: number; month: number }
+    >({
+      queryFn: async (
+        { year, month },
+        { getState },
+        extraOptions,
+        baseQuery,
+      ) => {
         // Development mock
         if (isDevelopment) {
           await new Promise((resolve) => setTimeout(resolve, 300))
@@ -495,8 +561,12 @@ export const api = createApi({
         }
 
         // Production: use real API
-        const result = await baseQuery(`/diary/monthly?year=${year}&month=${month}`)
-        return result.data ? { data: result.data as MonthlyHeatmapData[] } : { error: result.error }
+        const result = await baseQuery(
+          `/diary/monthly?year=${year}&month=${month}`,
+        )
+        return result.data
+          ? { data: result.data as MonthlyHeatmapData[] }
+          : { error: result.error }
       },
       providesTags: ['Diary'],
     }),
@@ -508,7 +578,10 @@ export const api = createApi({
       query: () => '/preferences',
       providesTags: ['Preferences'],
     }),
-    updatePreferences: builder.mutation<{ ok: boolean; preferences: UserPreferences }, Partial<UserPreferences>>({
+    updatePreferences: builder.mutation<
+      { ok: boolean; preferences: UserPreferences },
+      Partial<UserPreferences>
+    >({
       query: (body) => ({
         url: '/preferences',
         method: 'PUT',
@@ -516,7 +589,10 @@ export const api = createApi({
       }),
       invalidatesTags: ['Preferences'],
     }),
-    updateProfile: builder.mutation<{ ok: boolean; user: User }, UpdateProfileRequest>({
+    updateProfile: builder.mutation<
+      { ok: boolean; user: User },
+      UpdateProfileRequest
+    >({
       query: (body) => ({
         url: '/auth/profile',
         method: 'PUT',
@@ -524,14 +600,20 @@ export const api = createApi({
       }),
       invalidatesTags: ['Auth'],
     }),
-    changePassword: builder.mutation<{ ok: boolean; message: string }, ChangePasswordRequest>({
+    changePassword: builder.mutation<
+      { ok: boolean; message: string },
+      ChangePasswordRequest
+    >({
       query: (body) => ({
         url: '/auth/change-password',
         method: 'POST',
         body,
       }),
     }),
-    deleteAccount: builder.mutation<{ ok: boolean; message: string }, DeleteAccountRequest>({
+    deleteAccount: builder.mutation<
+      { ok: boolean; message: string },
+      DeleteAccountRequest
+    >({
       query: (body) => ({
         url: '/auth/account',
         method: 'DELETE',
@@ -546,7 +628,10 @@ export const api = createApi({
     // ========================================================================
     // Legacy Endpoints (keep for compatibility)
     // ========================================================================
-    generateImage: builder.mutation<GenerateImageResponse, GenerateImageRequest>({
+    generateImage: builder.mutation<
+      GenerateImageResponse,
+      GenerateImageRequest
+    >({
       query: (body) => ({
         url: '/generate-image',
         method: 'POST',
@@ -555,19 +640,22 @@ export const api = createApi({
     }),
     getAnalytics: builder.query({
       queryFn: () => {
-        return analyticsService.getAnalytics().then(res => {
-          return {
-            data: res,
-            error: undefined
-          }
-        }).catch(res => {
-          return {
-            data: undefined,
-            error: res
-          }
-        })
-      }
-    })
+        return analyticsService
+          .getAnalytics()
+          .then((res) => {
+            return {
+              data: res,
+              error: undefined,
+            }
+          })
+          .catch((res) => {
+            return {
+              data: undefined,
+              error: res,
+            }
+          })
+      },
+    }),
   }),
 })
 
