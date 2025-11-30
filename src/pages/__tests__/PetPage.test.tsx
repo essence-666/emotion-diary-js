@@ -4,8 +4,35 @@ import { Provider } from 'react-redux'
 import { configureStore } from '@reduxjs/toolkit'
 import PetPage from '../PetPage'
 
+// Mock React Three Fiber
+jest.mock('@react-three/fiber', () => ({
+  Canvas: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="canvas">{children}</div>
+  ),
+  useFrame: jest.fn(),
+}))
+
+// Mock drei components
+jest.mock('@react-three/drei', () => ({
+  PerspectiveCamera: () => null,
+  Environment: () => null,
+  Sparkles: () => null,
+  Cloud: () => null,
+}))
+
+// Mock postprocessing
+jest.mock('@react-three/postprocessing', () => ({
+  EffectComposer: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="effect-composer">{children}</div>
+  ),
+  Bloom: () => null,
+  Vignette: () => null,
+  Noise: () => null,
+}))
+
 // Mock the API module
 const mockGetPet = jest.fn()
+const mockGetCheckins = jest.fn()
 const mockFeedPet = jest.fn()
 const mockPetPet = jest.fn()
 const mockTalkToPet = jest.fn()
@@ -17,6 +44,7 @@ jest.mock('../../__data__/api', () => ({
     middleware: () => (next: any) => (action: any) => next(action),
   },
   useGetPetQuery: () => mockGetPet(),
+  useGetCheckinsQuery: () => mockGetCheckins(),
   useFeedPetMutation: () => [mockFeedPet, { isLoading: false }],
   usePetPetMutation: () => [mockPetPet, { isLoading: false }],
   useTalkToPetMutation: () => [mockTalkToPet, { isLoading: false }],
@@ -50,6 +78,11 @@ describe('PetPage', () => {
     localStorage.clear()
     mockGetPet.mockReturnValue({
       data: mockPetData,
+      isLoading: false,
+      error: null,
+    })
+    mockGetCheckins.mockReturnValue({
+      data: [],
       isLoading: false,
       error: null,
     })
@@ -129,7 +162,11 @@ describe('PetPage', () => {
       </Provider>
     )
 
-    expect(screen.getByTestId('pet-avatar-svg')).toBeInTheDocument()
+    // Check for Canvas (3D scene)
+    expect(screen.getByTestId('canvas')).toBeInTheDocument()
+    // PetAvatar is rendered inside Canvas, verify Canvas exists
+    const canvas = screen.getByTestId('canvas')
+    expect(canvas).toBeInTheDocument()
   })
 
   test('renders InteractionButtons', () => {

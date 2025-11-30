@@ -1,285 +1,195 @@
-import React from 'react'
-import { Box } from '@chakra-ui/react'
-import { motion } from 'framer-motion'
-import { useColorModeValue } from '@chakra-ui/react'
+import React, { useMemo } from 'react'
+import { 
+  Sparkles, 
+  Cloud, 
+  Stars, 
+  Sky, 
+  Environment, 
+  SoftShadows,
+  useGLTF
+} from '@react-three/drei'
+import { Mesh } from 'three'
+import * as THREE from 'three'
+import groundModel from '../../assets/models/ground.glb'
 
-const MotionBox = motion(Box)
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
 
-export const AnimatedBackground: React.FC = () => {
-  const skyGradient = useColorModeValue(
-    'linear-gradient(180deg, #87CEEB 0%, #E0F6FF 100%)',
-    'linear-gradient(180deg, #1a2332 0%, #2d3748 100%)'
-  )
-  const grassColor = useColorModeValue('#7CB342', '#2d5016')
-  const treeColor = useColorModeValue('#2E7D32', '#1a4d1a')
-  const cloudColor = useColorModeValue('rgba(255, 255, 255, 0.8)', 'rgba(100, 116, 139, 0.3)')
+const CONFIG = {
+  fog: { color: '#f0f0f0', density: 0.01 },
+} as const
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+interface AnimatedBackgroundProps {
+  moodColor: string
+  happiness: number
+}
+
+// ============================================================================
+// UTILITIES
+// ============================================================================
+
+const hslToRgb = (hsl: string): [number, number, number] => {
+  const match = hsl.match(/hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)/)
+  if (!match) return [0.53, 0.81, 0.92]
+
+  const h = parseInt(match[1]) / 360
+  const s = parseInt(match[2]) / 100
+  const l = parseInt(match[3]) / 100
+
+  const c = (1 - Math.abs(2 * l - 1)) * s
+  const x = c * (1 - Math.abs(((h * 6) % 2) - 1))
+  const m = l - c / 2
+
+  let r = 0, g = 0, b = 0
+
+  if (h < 1 / 6) { r = c; g = x; b = 0 }
+  else if (h < 2 / 6) { r = x; g = c; b = 0 }
+  else if (h < 3 / 6) { r = 0; g = c; b = x }
+  else if (h < 4 / 6) { r = 0; g = x; b = c }
+  else if (h < 5 / 6) { r = x; g = 0; b = c }
+  else { r = c; g = 0; b = x }
+
+  return [r + m, g + m, b + m]
+}
+
+// ============================================================================
+// GROUND MODEL COMPONENT
+// ============================================================================
+
+const GroundModel: React.FC = () => {
+  // useGLTF is a Suspense hook - it will suspend if loading
+  // React Suspense will handle the loading state
+  const { scene } = useGLTF(groundModel, true)
+
+  // Align model to ground (in case author shifted pivot)
+  const cloned = useMemo(() => {
+    if (!scene) {
+      console.warn('Ground model scene is not available')
+      return null
+    }
+
+    const g = scene.clone(true)
+
+    // Calculate positioning
+    const box = new THREE.Box3().setFromObject(g)
+    const minY = box.min.y
+    const size = new THREE.Vector3()
+    box.getSize(size)
+
+    console.log('Ground model bounds:', { minY, size: { x: size.x, y: size.y, z: size.z } })
+
+    // Shift model up so it touches Y=0 (minY is essentially 0, so this should be minimal)
+    g.position.y -= minY
+
+    // Make sure the group itself is visible
+    g.visible = true
+
+    // Enable shadows and make sure materials are visible
+    g.traverse((obj) => {
+      if (obj instanceof Mesh) {
+        obj.castShadow = true
+        obj.receiveShadow = true
+        obj.visible = true
+        obj.frustumCulled = false // Don't cull the ground
+        
+        if (obj.material) {
+          // Ensure material is visible
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach((mat: any) => {
+              if (mat) {
+                mat.needsUpdate = true
+                // Make sure material is not transparent
+                if (mat.transparent !== undefined) {
+                  mat.transparent = false
+                }
+                if (mat.opacity !== undefined && mat.opacity < 1) {
+                  mat.opacity = 1
+                }
+              }
+            })
+          } else {
+            obj.material.needsUpdate = true
+            // Make sure material is not transparent
+            if ((obj.material as any).transparent !== undefined) {
+              (obj.material as any).transparent = false
+            }
+            if ((obj.material as any).opacity !== undefined && (obj.material as any).opacity < 1) {
+              (obj.material as any).opacity = 1
+            }
+          }
+        }
+      }
+    })
+
+    return g
+  }, [scene])
+
+  if (!cloned) {
+    // Fallback: simple plane if model fails to load
+    console.warn('Ground model failed to load, using fallback plane')
+    return (
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
+        <planeGeometry args={[20, 20]} />
+        <meshStandardMaterial color="#8B7355" />
+      </mesh>
+    )
+  }
+
+  return <primitive object={cloned} />
+}
+
+// ============================================================================
+// ENVIRONMENT COMPONENTS
+// ============================================================================
+
+const SceneFog: React.FC = () => (
+  <fogExp2 attach="fog" args={[CONFIG.fog.color, CONFIG.fog.density]} />
+)
+
+// Proper clouds high up in the sky
+const CloudLayer: React.FC = () => (
+  <>
+    <Cloud position={[-8, 5, -15]} segments={40} bounds={[10, 2, 10]} volume={10} color="white" />
+    <Cloud position={[8, 5.5, -18]} segments={40} bounds={[12, 2, 10]} volume={10} color="white" />
+    <Cloud position={[0, 6, -20]} segments={40} bounds={[15, 3, 10]} volume={10} color="#f8f8ff" />
+    <Cloud position={[-12, 5.2, -16]} segments={40} bounds={[8, 2, 10]} volume={10} color="white" />
+  </>
+)
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
+
+export const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({ moodColor, happiness }) => {
+  // const particleColor = useMemo(() => {
+  //   const [r, g, b] = hslToRgb(moodColor)
+  //   return new THREE.Color(r, g, b)
+  // }, [moodColor])
 
   return (
-    <Box
-      position="fixed"
-      top={0}
-      left={0}
-      right={0}
-      bottom={0}
-      overflow="hidden"
-      zIndex={0}
-      data-testid="animated-background"
-    >
-      {/* Sky */}
-      <Box
-        position="absolute"
-        top={0}
-        left={0}
-        right={0}
-        height="70%"
-        background={skyGradient}
-      />
+    <group>
+      {/* Atmosphere */}
+      {/* <SceneFog /> */}
+      {/* <SoftShadows size={25} samples={16} focus={0.5} /> */}
+      {/* <Sky sunPosition={[100, 20, 100]} turbidity={0.1} rayleigh={0.5} mieCoefficient={0.005} mieDirectionalG={0.8} /> */}
+      {/* <Environment preset="sunset" /> */}
+      
+      {/* Ground Model */}
+      <GroundModel />
+      
+      {/* Sky Elements */}
+      {/* <Stars radius={100} depth={50} count={happiness > 50 ? 300 : 150} factor={2} saturation={0.2} fade speed={0.2} /> */}
+      {/* <CloudLayer /> */}
 
-      {/* Clouds */}
-      <MotionBox
-        position="absolute"
-        top="10%"
-        left="-10%"
-        width="200px"
-        height="80px"
-        borderRadius="50%"
-        background={cloudColor}
-        animate={{
-          x: ['0vw', '120vw'],
-        }}
-        transition={{
-          duration: 60,
-          repeat: Infinity,
-          ease: 'linear',
-        }}
-        _before={{
-          content: '""',
-          position: 'absolute',
-          top: '20px',
-          left: '30px',
-          width: '100px',
-          height: '50px',
-          borderRadius: '50%',
-          background: cloudColor,
-        }}
-        _after={{
-          content: '""',
-          position: 'absolute',
-          top: '10px',
-          left: '80px',
-          width: '80px',
-          height: '60px',
-          borderRadius: '50%',
-          background: cloudColor,
-        }}
-      />
-
-      <MotionBox
-        position="absolute"
-        top="20%"
-        left="-15%"
-        width="180px"
-        height="70px"
-        borderRadius="50%"
-        background={cloudColor}
-        animate={{
-          x: ['0vw', '120vw'],
-        }}
-        transition={{
-          duration: 80,
-          repeat: Infinity,
-          ease: 'linear',
-        }}
-        _before={{
-          content: '""',
-          position: 'absolute',
-          top: '15px',
-          left: '40px',
-          width: '90px',
-          height: '45px',
-          borderRadius: '50%',
-          background: cloudColor,
-        }}
-      />
-
-      {/* Ground */}
-      <Box
-        position="absolute"
-        bottom={0}
-        left={0}
-        right={0}
-        height="30%"
-        background={grassColor}
-      />
-
-      {/* Trees in background */}
-      {[...Array(6)].map((_, i) => (
-        <Box
-          key={`tree-${i}`}
-          position="absolute"
-          bottom="30%"
-          left={`${-5 + i * 18}%`}
-          width="120px"
-          height="350px"
-        >
-          {/* Trunk */}
-          <Box
-            position="absolute"
-            bottom={0}
-            left="50%"
-            transform="translateX(-50%)"
-            width="30px"
-            height="120px"
-            background="#6D4C41"
-            borderRadius="4px"
-          />
-          {/* Foliage - Layer 1 (bottom, largest) */}
-          <Box
-            position="absolute"
-            bottom="100px"
-            left="50%"
-            transform="translateX(-50%)"
-            width={0}
-            height={0}
-            borderLeft="60px solid transparent"
-            borderRight="60px solid transparent"
-            borderBottom={`120px solid ${treeColor}`}
-          />
-          {/* Foliage - Layer 2 */}
-          <Box
-            position="absolute"
-            bottom="180px"
-            left="50%"
-            transform="translateX(-50%)"
-            width={0}
-            height={0}
-            borderLeft="50px solid transparent"
-            borderRight="50px solid transparent"
-            borderBottom={`100px solid ${treeColor}`}
-            opacity={0.9}
-          />
-          {/* Foliage - Layer 3 */}
-          <Box
-            position="absolute"
-            bottom="240px"
-            left="50%"
-            transform="translateX(-50%)"
-            width={0}
-            height={0}
-            borderLeft="40px solid transparent"
-            borderRight="40px solid transparent"
-            borderBottom={`80px solid ${treeColor}`}
-            opacity={0.85}
-          />
-          {/* Foliage - Layer 4 (top) */}
-          <Box
-            position="absolute"
-            bottom="280px"
-            left="50%"
-            transform="translateX(-50%)"
-            width={0}
-            height={0}
-            borderLeft="30px solid transparent"
-            borderRight="30px solid transparent"
-            borderBottom={`60px solid ${treeColor}`}
-            opacity={0.8}
-          />
-        </Box>
-      ))}
-
-      {/* Grass blades */}
-      {[...Array(20)].map((_, i) => (
-        <MotionBox
-          key={`grass-${i}`}
-          position="absolute"
-          bottom="28%"
-          left={`${i * 5}%`}
-          width="4px"
-          height="30px"
-          background={grassColor}
-          borderRadius="2px 2px 0 0"
-          transformOrigin="bottom"
-          animate={{
-            rotate: [0, 3, -3, 0],
-          }}
-          transition={{
-            duration: 2 + Math.random() * 2,
-            repeat: Infinity,
-            ease: 'easeInOut',
-            delay: Math.random() * 2,
-          }}
-        />
-      ))}
-
-      {/* Fireflies/particles */}
-      {[...Array(8)].map((_, i) => (
-        <MotionBox
-          key={`firefly-${i}`}
-          position="absolute"
-          width="4px"
-          height="4px"
-          borderRadius="50%"
-          background="rgba(255, 223, 0, 0.8)"
-          boxShadow="0 0 10px rgba(255, 223, 0, 0.6)"
-          animate={{
-            x: [
-              Math.random() * window.innerWidth,
-              Math.random() * window.innerWidth,
-              Math.random() * window.innerWidth,
-            ],
-            y: [
-              Math.random() * window.innerHeight * 0.7,
-              Math.random() * window.innerHeight * 0.7,
-              Math.random() * window.innerHeight * 0.7,
-            ],
-            opacity: [0, 1, 0.5, 1, 0],
-          }}
-          transition={{
-            duration: 8 + Math.random() * 4,
-            repeat: Infinity,
-            ease: 'easeInOut',
-            delay: Math.random() * 5,
-          }}
-        />
-      ))}
-
-      {/* Butterflies */}
-      {[...Array(3)].map((_, i) => (
-        <MotionBox
-          key={`butterfly-${i}`}
-          position="absolute"
-          animate={{
-            x: ['0vw', '100vw'],
-            y: [
-              `${30 + Math.random() * 20}%`,
-              `${20 + Math.random() * 20}%`,
-              `${30 + Math.random() * 20}%`,
-            ],
-          }}
-          transition={{
-            duration: 20 + i * 5,
-            repeat: Infinity,
-            ease: 'linear',
-            delay: i * 7,
-          }}
-        >
-          <svg width="24" height="20" viewBox="0 0 24 20">
-            <motion.path
-              d="M8 10 Q6 6, 4 8 T2 10 Q4 12, 6 10 Z"
-              fill="#FF69B4"
-              animate={{ rotate: [0, 10, 0] }}
-              transition={{ duration: 0.3, repeat: Infinity }}
-            />
-            <motion.path
-              d="M16 10 Q18 6, 20 8 T22 10 Q20 12, 18 10 Z"
-              fill="#FF1493"
-              animate={{ rotate: [0, -10, 0] }}
-              transition={{ duration: 0.3, repeat: Infinity }}
-            />
-            <path d="M12 4 L12 16" stroke="#000" strokeWidth="2" />
-          </svg>
-        </MotionBox>
-      ))}
-    </Box>
+      {/* Particles & Effects */}
+      {/* <Sparkles count={200} scale={12} size={4} speed={0.4} opacity={0.5} color="lightyellow" /> */}
+      {/* <Sparkles count={100} scale={[15, 6, 15]} position={[0, 2, -5]} size={2} speed={0.2} opacity={0.3} color="#ffffff" /> */}
+      {/* <Sparkles count={50} scale={[12, 5, 10]} position={[0, 1.5, -2]} size={3} speed={0.3} opacity={0.4} color={particleColor} /> */}
+    </group>
   )
 }
