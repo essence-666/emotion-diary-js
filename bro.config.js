@@ -4,7 +4,7 @@ const path = require('path')
 const CopyWebpackPlugin = require('copy-webpack-plugin')
 
 module.exports = {
-  apiPath: 'stubs/api',
+  apiPath: '',
   webpackConfig: {
     output: {
       publicPath: `/static/${pkg.name}/${process.env.VERSION || pkg.version}/`,
