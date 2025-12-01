@@ -1,4 +1,4 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
+import { BaseQueryArg, createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 import { analyticsService } from '../service/analytics'
 import type {
   AuthResponse,
@@ -23,7 +23,7 @@ import type {
   ChangePasswordRequest,
   DeleteAccountRequest,
   ExportDataResponse,
-  User,
+  User, SubscriptionTier,
 } from '../types'
 import { getConfigValue } from '@brojs/cli'
 
@@ -624,6 +624,13 @@ export const api = createApi({
     exportData: builder.query<{ ok: boolean; data: ExportDataResponse }, void>({
       query: () => '/auth/export-data',
     }),
+    createSubscription: builder.mutation<{tier: SubscriptionTier; payment_method_id: string }, void>({
+      query: () => ({
+        url: 'subscriptions/create',
+        method: 'POST',
+      }),
+      invalidatesTags: ['Auth'],
+    }),
 
     // ========================================================================
     // Legacy Endpoints (keep for compatibility)
@@ -691,6 +698,7 @@ export const {
   useChangePasswordMutation,
   useDeleteAccountMutation,
   useExportDataQuery,
+  useCreateSubscriptionMutation,
   // Legacy
   useGenerateImageMutation,
   useGetAnalyticsQuery,

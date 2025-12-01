@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import {
   Box,
   Heading,
@@ -17,14 +17,60 @@ import {
   Badge,
   Icon,
   useColorModeValue,
+  useToast,
 } from '@chakra-ui/react'
 import { FiSmile, FiTrendingUp, FiHeart, FiCalendar } from 'react-icons/fi'
 import { useAuth } from '../hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
+import { useCreateSubscriptionMutation } from '../__data__/api'
+import { useAppDispatch } from '../__data__/store'
+import { updateSubscriptionTier } from '../__data__/slices/authSlice'
 
 export const Dashboard: React.FC = () => {
   const { user, isPremium } = useAuth()
   const navigate = useNavigate()
+  const dispatch = useAppDispatch()
+  const [createSubscription, { isLoading: isCreatingSubscription }] = useCreateSubscriptionMutation()
+  const toast = useToast()
+  const [isProcessing, setIsProcessing] = useState(false)
+
+  const handleUpgrade = async () => {
+    try {
+      setIsProcessing(true)
+      const result = await createSubscription()
+      
+      if ('data' in result && result.data) {
+        // Update subscription tier in Redux state
+        dispatch(updateSubscriptionTier(result.data.tier))
+        
+        toast({
+          title: 'Subscription created',
+          description: 'Your Premium subscription has been activated!',
+          status: 'success',
+          duration: 5000,
+          isClosable: true,
+        })
+      } else if ('error' in result) {
+        toast({
+          title: 'Subscription failed',
+          description: 'Failed to create subscription. Please try again.',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        })
+      }
+    } catch (_error) {
+      toast({
+        title: 'Error',
+        description: 'An unexpected error occurred. Please try again.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      })
+    } finally {
+      setIsProcessing(false)
+    }
+  }
 
   // Color mode values
   const textSecondary = useColorModeValue('gray.600', 'gray.400')
@@ -163,7 +209,9 @@ export const Dashboard: React.FC = () => {
               <Button
                 colorScheme="purple"
                 size="md"
-                onClick={() => navigate('/settings')}
+                onClick={handleUpgrade}
+                isLoading={isCreatingSubscription || isProcessing}
+                loadingText="Processing..."
               >
                 Upgrade to Premium
               </Button>

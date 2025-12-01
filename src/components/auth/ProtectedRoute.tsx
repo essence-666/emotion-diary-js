@@ -1,7 +1,10 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Navigate } from 'react-router-dom'
-import { Box, Heading, Text, Button, VStack, Spinner, Center } from '@chakra-ui/react'
+import { Box, Heading, Text, Button, VStack, Spinner, Center, useToast } from '@chakra-ui/react'
 import { useAuth } from '../../hooks/useAuth'
+import { useCreateSubscriptionMutation } from '../../__data__/api'
+import { useAppDispatch } from '../../__data__/store'
+import { updateSubscriptionTier } from '../../__data__/slices/authSlice'
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -13,6 +16,48 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requirePremium = false,
 }) => {
   const { isAuthenticated, isPremium, isLoading } = useAuth()
+  const dispatch = useAppDispatch()
+  const [createSubscription, { isLoading: isCreatingSubscription }] = useCreateSubscriptionMutation()
+  const toast = useToast()
+  const [isProcessing, setIsProcessing] = useState(false)
+
+  const handleUpgrade = async () => {
+    try {
+      setIsProcessing(true)
+      const result = await createSubscription()
+      
+      if ('data' in result && result.data) {
+        // Update subscription tier in Redux state
+        dispatch(updateSubscriptionTier(result.data.tier))
+        
+        toast({
+          title: 'Subscription created',
+          description: 'Your Premium subscription has been activated!',
+          status: 'success',
+          duration: 5000,
+          isClosable: true,
+        })
+      } else if ('error' in result) {
+        toast({
+          title: 'Subscription failed',
+          description: 'Failed to create subscription. Please try again.',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        })
+      }
+    } catch (_error) {
+      toast({
+        title: 'Error',
+        description: 'An unexpected error occurred. Please try again.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      })
+    } finally {
+      setIsProcessing(false)
+    }
+  }
 
   // Show loading spinner while checking auth status
   if (isLoading) {
@@ -53,10 +98,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
             <Button
               colorScheme="purple"
               size="lg"
-              onClick={() => {
-                // Navigate to subscription page
-                window.location.href = '/subscription'
-              }}
+              onClick={handleUpgrade}
+              isLoading={isCreatingSubscription || isProcessing}
+              loadingText="Processing..."
             >
               Upgrade to Premium
             </Button>
