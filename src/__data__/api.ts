@@ -39,175 +39,6 @@ interface GenerateImageRequest {
 // Helper to get token from localStorage
 const getToken = () => localStorage.getItem('auth_token')
 
-// Development mode check - TEMPORARILY FORCED TO TRUE
-// The backend API endpoints for diary aren't implemented yet, so we use mocks
-// TODO: Change to `process.env.NODE_ENV !== 'production'` when backend is ready
-const isDevelopment = process.env.NODE_ENV === 'development'
-
-// Debug logging (remove in production)
-if (typeof window !== 'undefined') {
-  console.log('[API] Mock mode enabled:', isDevelopment)
-}
-
-// Mock data generators
-const generateMockDiaryEntries = (count: number = 5): DiaryEntry[] => {
-  const emotions = ['happy', 'sad', 'calm', 'stressed', 'excited', 'angry']
-  // Lighter, calmer colors for tags that work well in both light and dark modes
-  const tags = [
-    { id: 1, name: 'work', color: '#8B5CF6' }, // purple.500
-    { id: 2, name: 'family', color: '#10B981' }, // green.500
-    { id: 3, name: 'health', color: '#F59E0B' }, // amber.500
-    { id: 4, name: 'personal', color: '#EC4899' }, // pink.500
-    { id: 5, name: 'hobby', color: '#06B6D4' }, // cyan.500
-  ]
-  const sampleContents = [
-    'Had a productive day at work. Managed to complete the project ahead of schedule and received positive feedback from the team.',
-    'Spent quality time with family today. We went to the park and had a picnic. The weather was perfect.',
-    'Feeling stressed about upcoming deadlines. Need to focus on time management and prioritization.',
-    'Great workout session this morning! Feeling energized and ready to tackle the day.',
-    'Had a long conversation with an old friend. It was nice to catch up and reminisce about old times.',
-  ]
-
-  return Array.from({ length: count }, (_, i) => ({
-    id: i + 1,
-    user_id: 1,
-    title: i % 2 === 0 ? `Entry ${i + 1}` : null,
-    content: sampleContents[i % sampleContents.length],
-    date: new Date(Date.now() - i * 86400000).toISOString().split('T')[0],
-    tags: [tags[i % tags.length]],
-    mood_snapshot: emotions.slice(0, Math.floor(Math.random() * 3) + 1),
-    created_at: new Date(Date.now() - i * 86400000).toISOString(),
-    updated_at: new Date(Date.now() - i * 86400000).toISOString(),
-  }))
-}
-
-const generateMockHeatmapData = (
-  year: number,
-  month: number,
-): MonthlyHeatmapData[] => {
-  const daysInMonth = new Date(year, month, 0).getDate()
-  const emotions = ['happy', 'sad', 'calm', 'stressed', 'excited', 'angry']
-
-  return Array.from({ length: daysInMonth }, (_, i) => {
-    const day = i + 1
-    const date = `${year}-${String(month).padStart(2, '0')}-${String(
-      day,
-    ).padStart(2, '0')}`
-    const emotionCount = Math.floor(Math.random() * 8) // 0-7 emotions per day
-
-    return {
-      date,
-      emotion_count: emotionCount,
-      emotions:
-        emotionCount > 0
-          ? emotions.slice(0, Math.min(emotionCount, emotions.length))
-          : [],
-    }
-  })
-}
-
-const generateMockCheckins = (count: number = 10): MoodCheckin[] => {
-  const reflectionTexts = [
-    'Had a great morning walk. Feeling energized and positive.',
-    'Work was challenging today, but I managed to stay focused.',
-    'Feeling a bit overwhelmed with tasks. Need to take breaks.',
-    'Spent quality time with loved ones. Feeling grateful.',
-    'Accomplished my goals for the day. Proud of myself!',
-    'Had some setbacks, but staying optimistic.',
-    'Really enjoying this new hobby. It brings me peace.',
-    'Feeling anxious about upcoming events.',
-  ]
-
-  return Array.from({ length: count }, (_, i) => ({
-    id: i + 1,
-    user_id: 1,
-    emotion_id: (i % 6) + 1, // Rotate through emotions 1-6
-    intensity: Math.floor(Math.random() * 10) + 1, // 1-10
-    reflection_text:
-      i % 3 === 0 ? reflectionTexts[i % reflectionTexts.length] : undefined,
-    created_at: new Date(Date.now() - i * 3600000 * 4).toISOString(), // Every 4 hours
-    updated_at: new Date(Date.now() - i * 3600000 * 4).toISOString(),
-  }))
-}
-
-// Mock pet state (persisted in memory for the session)
-let mockPetState: Pet = {
-  id: 1,
-  user_id: 1,
-  name: 'Buddy',
-  pet_type: 'cat',
-  happiness_level: 75,
-  last_interaction: new Date().toISOString(),
-  cosmetic_skin: 'default',
-  created_at: new Date(Date.now() - 30 * 86400000).toISOString(), // 30 days ago
-  updated_at: new Date().toISOString(),
-}
-
-const generateMockPet = (): Pet => {
-  return { ...mockPetState }
-}
-
-const updateMockPetHappiness = (change: number): Pet => {
-  mockPetState = {
-    ...mockPetState,
-    happiness_level: Math.max(
-      0,
-      Math.min(100, mockPetState.happiness_level + change),
-    ),
-    last_interaction: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  }
-  return { ...mockPetState }
-}
-
-const generateMockDialogue = (happiness: number): string => {
-  if (happiness >= 80) {
-    return [
-      'I love you so much! You make me the happiest pet! 🥰',
-      'This is amazing! I feel so loved and cared for! ✨',
-      "You're the best! Thank you for taking such good care of me! 💖",
-      "I'm so happy! Let's play together more often! 🎉",
-    ][Math.floor(Math.random() * 4)]
-  } else if (happiness >= 50) {
-    return [
-      'Thanks for spending time with me! 😊',
-      'I appreciate you! This means a lot to me.',
-      'Feeling good! You always know how to cheer me up!',
-      'I enjoy our time together! 💚',
-    ][Math.floor(Math.random() * 4)]
-  } else if (happiness >= 20) {
-    return [
-      'I could use some attention... 😔',
-      "It's been a while since we spent time together.",
-      'Are you still there? I miss you...',
-      'I need some care and love.',
-    ][Math.floor(Math.random() * 4)]
-  } else {
-    return [
-      "Please don't forget about me... 😢",
-      'I really need you right now...',
-      'I feel so lonely... Please come back.',
-      'I miss you so much... Where have you been?',
-    ][Math.floor(Math.random() * 4)]
-  }
-}
-
-const generateMockCheckinStats = (): CheckinStats => {
-  return {
-    emotion_distribution: {
-      happy: 25,
-      sad: 10,
-      angry: 5,
-      calm: 30,
-      stressed: 20,
-      excited: 10,
-    },
-    avg_intensity: 6.5,
-    total_checkins: 42,
-    streak_count: 7,
-  }
-}
-
 export const api = createApi({
   baseQuery: fetchBaseQuery({
     baseUrl: String(getConfigValue('emotion-diary.api') || '/api'),
@@ -270,51 +101,17 @@ export const api = createApi({
     }),
     getCheckins: builder.query<
       MoodCheckin[],
-      { limit?: number; offset?: number }
+      { page?: number; limit?: number }
     >({
-      queryFn: async (
-        { limit = 10, offset = 0 },
-        { getState },
-        extraOptions,
-        baseQuery,
-      ) => {
-        // Development mock
-        if (isDevelopment) {
-          await new Promise((resolve) => setTimeout(resolve, 500))
-          const allCheckins = generateMockCheckins(20)
-          const paginatedCheckins = allCheckins.slice(offset, offset + limit)
-          return { data: paginatedCheckins }
-        }
-
-        // Production: use real API
-        const result = await baseQuery(
-          `/checkins?limit=${limit}&offset=${offset}`,
-        )
-        return result.data
-          ? { data: result.data as MoodCheckin[] }
-          : { error: result.error }
-      },
+      query: ({ page = 1, limit = 20 }) => `/checkins?page=${page}&limit=${limit}`,
       providesTags: ['Checkin'],
     }),
     getDailyCheckins: builder.query<MoodCheckin[], { date: string }>({
       query: ({ date }) => `/checkins/daily/${date}`,
       providesTags: ['Checkin'],
     }),
-    getCheckinStats: builder.query<CheckinStats, void>({
-      queryFn: async (_, { getState }, extraOptions, baseQuery) => {
-        // Development mock
-        if (isDevelopment) {
-          await new Promise((resolve) => setTimeout(resolve, 300))
-          const mockStats = generateMockCheckinStats()
-          return { data: mockStats }
-        }
-
-        // Production: use real API
-        const result = await baseQuery('/checkins/stats')
-        return result.data
-          ? { data: result.data as CheckinStats }
-          : { error: result.error }
-      },
+    getCheckinStats: builder.query<CheckinStats, { days?: number }>({
+      query: ({ days = 7 }) => `/checkins/stats?days=${days}`,
       providesTags: ['Checkin'],
     }),
 
@@ -322,148 +119,48 @@ export const api = createApi({
     // Pet Endpoints
     // ========================================================================
     getPet: builder.query<Pet, void>({
-      queryFn: async (arg, _, extraOptions, baseQuery) => {
-        // Development mock
-        if (isDevelopment) {
-          await new Promise((resolve) => setTimeout(resolve, 300))
-          return { data: generateMockPet() }
-        }
-
-        // Production: use real API
-        const result = await baseQuery('/pet')
-        return result.data
-          ? { data: result.data as Pet }
-          : { error: result.error }
-      },
+      query: () => '/pet',
       providesTags: ['Pet'],
     }),
     feedPet: builder.mutation<FeedPetResponse, void>({
-      queryFn: async (arg, _, extraOptions, baseQuery) => {
-        // Development mock
-        if (isDevelopment) {
-          await new Promise((resolve) => setTimeout(resolve, 500))
-          const updatedPet = updateMockPetHappiness(10)
-          return {
-            data: {
-              ok: true,
-              happiness_level: updatedPet.happiness_level,
-              happiness_change: 10,
-            },
-          }
-        }
-
-        // Production: use real API
-        const result = await baseQuery({
-          url: '/pet/feed',
-          method: 'POST',
-        })
-        return result.data
-          ? { data: result.data as FeedPetResponse }
-          : { error: result.error }
-      },
+      query: () => ({
+        url: '/pet/feed',
+        method: 'POST',
+      }),
       invalidatesTags: ['Pet'],
     }),
     petPet: builder.mutation<FeedPetResponse, void>({
-      queryFn: async (arg, _, extraOptions, baseQuery) => {
-        // Development mock
-        if (isDevelopment) {
-          await new Promise((resolve) => setTimeout(resolve, 400))
-          const updatedPet = updateMockPetHappiness(5)
-          return {
-            data: {
-              ok: true,
-              happiness_level: updatedPet.happiness_level,
-              happiness_change: 5,
-            },
-          }
-        }
-
-        // Production: use real API
-        const result = await baseQuery({
-          url: '/pet/pet',
-          method: 'POST',
-        })
-        return result.data
-          ? { data: result.data as FeedPetResponse }
-          : { error: result.error }
-      },
+      query: () => ({
+        url: '/pet/pet',
+        method: 'POST',
+      }),
       invalidatesTags: ['Pet'],
     }),
-    talkToPet: builder.mutation<PetTalkResponse, void>({
-      queryFn: async (arg, _, extraOptions, baseQuery) => {
-        // Development mock
-        if (isDevelopment) {
-          await new Promise((resolve) => setTimeout(resolve, 600))
-          const updatedPet = updateMockPetHappiness(2)
-          const dialogue = generateMockDialogue(updatedPet.happiness_level)
-          return {
-            data: {
-              ok: true,
-              pet: updatedPet,
-              dialogue,
-            } as any, // Backend returns { ok, pet, response } but type expects { ok, happiness_level, dialogue }
-          }
-        }
-
-        // Production: use real API
-        const result = await baseQuery({
-          url: '/pet/talk',
-          method: 'POST',
-        })
-        return result.data
-          ? { data: result.data as PetTalkResponse }
-          : { error: result.error }
-      },
+    talkToPet: builder.mutation<PetTalkResponse, { message: string }>({
+      query: (body) => ({
+        url: '/pet/talk',
+        method: 'POST',
+        body,
+      }),
       invalidatesTags: ['Pet'],
     }),
     updatePetName: builder.mutation<
       { ok: boolean; name: string },
       { name: string }
     >({
-      queryFn: async ({ name }, { getState }, extraOptions, baseQuery) => {
-        // Development mock
-        if (isDevelopment) {
-          await new Promise((resolve) => setTimeout(resolve, 300))
-          mockPetState = { ...mockPetState, name }
-          return { data: { ok: true, name } }
-        }
-
-        // Production: use real API
-        const result = await baseQuery({
-          url: '/pet/name',
-          method: 'PUT',
-          body: { name },
-        })
-        return result.data
-          ? { data: result.data as { ok: boolean; name: string } }
-          : { error: result.error }
-      },
+      query: (body) => ({
+        url: '/pet/name',
+        method: 'PUT',
+        body,
+      }),
       invalidatesTags: ['Pet'],
     }),
     customizePet: builder.mutation<{ ok: boolean }, CustomizePetRequest>({
-      queryFn: async (
-        { cosmetic_skin },
-        { getState },
-        extraOptions,
-        baseQuery,
-      ) => {
-        // Development mock
-        if (isDevelopment) {
-          await new Promise((resolve) => setTimeout(resolve, 300))
-          mockPetState = { ...mockPetState, cosmetic_skin }
-          return { data: { ok: true } }
-        }
-
-        // Production: use real API
-        const result = await baseQuery({
-          url: '/pet/customize',
-          method: 'POST',
-          body: { cosmetic_skin },
-        })
-        return result.data
-          ? { data: result.data as { ok: boolean } }
-          : { error: result.error }
-      },
+      query: (body) => ({
+        url: '/pet/customize',
+        method: 'POST',
+        body,
+      }),
       invalidatesTags: ['Pet'],
     }),
 
@@ -471,46 +168,13 @@ export const api = createApi({
     // Diary Endpoints
     // ========================================================================
     getDiaryEntries: builder.query<DiaryEntry[], GetDiaryEntriesRequest>({
-      queryFn: async (
-        { limit = 10, offset = 0, tags, date },
-        { getState },
-        extraOptions,
-        baseQuery,
-      ) => {
-        // Development mock
-        if (isDevelopment) {
-          await new Promise((resolve) => setTimeout(resolve, 500))
-          let allEntries = generateMockDiaryEntries(20)
-
-          // Filter by date if provided
-          if (date) {
-            allEntries = allEntries.filter((entry) => entry.date === date)
-          }
-
-          // Filter by tags if provided (simplified - just checks if any tag matches)
-          if (tags) {
-            const tagIds = tags.split(',').map(Number)
-            allEntries = allEntries.filter((entry) =>
-              entry.tags?.some((tag) => tagIds.includes(tag.id)),
-            )
-          }
-
-          const paginatedEntries = allEntries.slice(offset, offset + limit)
-          return { data: paginatedEntries }
-        }
-
-        // Production: use real API
+      query: ({ page = 1, limit = 20, tags }) => {
         const params = new URLSearchParams({
+          page: page.toString(),
           limit: limit.toString(),
-          offset: offset.toString(),
         })
         if (tags) params.append('tags', tags)
-        if (date) params.append('date', date)
-
-        const result = await baseQuery(`/diary?${params.toString()}`)
-        return result.data
-          ? { data: result.data as DiaryEntry[] }
-          : { error: result.error }
+        return `/diary?${params.toString()}`
       },
       providesTags: ['Diary'],
     }),
@@ -547,27 +211,7 @@ export const api = createApi({
       MonthlyHeatmapData[],
       { year: number; month: number }
     >({
-      queryFn: async (
-        { year, month },
-        { getState },
-        extraOptions,
-        baseQuery,
-      ) => {
-        // Development mock
-        if (isDevelopment) {
-          await new Promise((resolve) => setTimeout(resolve, 300))
-          const mockData = generateMockHeatmapData(year, month)
-          return { data: mockData }
-        }
-
-        // Production: use real API
-        const result = await baseQuery(
-          `/diary/monthly?year=${year}&month=${month}`,
-        )
-        return result.data
-          ? { data: result.data as MonthlyHeatmapData[] }
-          : { error: result.error }
-      },
+      query: ({ year, month }) => `/diary/monthly?year=${year}&month=${month}`,
       providesTags: ['Diary'],
     }),
 
@@ -626,7 +270,7 @@ export const api = createApi({
     }),
     createSubscription: builder.mutation<void, {tier: SubscriptionTier; payment_method_id: string }>({
       query: (body) => ({
-        url: 'subscriptions/create',
+        url: '/subscriptions/create',
         method: 'POST',
         body
       }),

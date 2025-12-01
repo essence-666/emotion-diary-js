@@ -192,14 +192,14 @@ const PetPage = () => {
   const { data: pet, isLoading, error } = useGetPetQuery()
 
   // Fetch checkins for mood analysis (last 7 days worth)
-  const { data: checkins } = useGetCheckinsQuery({ limit: 20, offset: 0 })
+  const { data: checkins = [] } = useGetCheckinsQuery({ page: 1, limit: 20 })
   const latestCheckin =
-    Array.isArray(checkins) && checkins.length > 0 ? checkins[0] : undefined
+    checkins.length > 0 ? checkins[0] : undefined
 
   // Fetch recent diary entries for engagement level
-  const { data: diaryEntries } = useGetDiaryEntriesQuery({
+  const { data: diaryEntries = [] } = useGetDiaryEntriesQuery({
+    page: 1,
     limit: 10,
-    offset: 0,
   })
 
   // Mutations
@@ -339,7 +339,7 @@ const PetPage = () => {
     setAnimationState('talking')
 
     try {
-      const result = await talkToPet().unwrap()
+      const result = await talkToPet({ message: 'Hello!' }).unwrap()
       setLocalHappiness(result.pet.happiness_level)
       addDialogue(result.dialogue)
 

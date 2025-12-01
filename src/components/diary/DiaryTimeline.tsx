@@ -32,22 +32,21 @@ export const DiaryTimeline: React.FC<DiaryTimelineProps> = ({
   onClearDateFilter,
 }) => {
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([])
-  const [offset, setOffset] = useState(0)
+  const [page, setPage] = useState(1)
   const [allEntries, setAllEntries] = useState<any[]>([])
   const loadMoreRef = useRef<HTMLDivElement>(null)
-  const prevOffsetRef = useRef(0)
+  const prevPageRef = useRef(1)
   const prevTagsRef = useRef<number[]>([])
   const prevDateRef = useRef<string | undefined>(undefined)
 
   // Build tags query string
   const tagsQuery = selectedTagIds.length > 0 ? selectedTagIds.join(',') : undefined
 
-  // Fetch entries with RTK Query
-  const { data: entries, isLoading, error, refetch } = useGetDiaryEntriesQuery({
+  // Fetch entries with RTK Query (Note: API doesn't support date filtering yet)
+  const { data: entries = [], isLoading, error, refetch } = useGetDiaryEntriesQuery({
+    page: page,
     limit: ITEMS_PER_PAGE,
-    offset: offset,
     tags: tagsQuery,
-    date: selectedDate,
   })
 
   // Update allEntries when new data arrives
@@ -55,9 +54,9 @@ export const DiaryTimeline: React.FC<DiaryTimelineProps> = ({
     if (entries) {
       const tagsChanged = JSON.stringify(prevTagsRef.current) !== JSON.stringify(selectedTagIds)
       const dateChanged = prevDateRef.current !== selectedDate
-      const offsetReset = prevOffsetRef.current > offset
+      const pageReset = prevPageRef.current > page
 
-      if (offset === 0 || tagsChanged || dateChanged || offsetReset) {
+      if (page === 1 || tagsChanged || dateChanged || pageReset) {
         // Reset entries on new filter or initial load
         setAllEntries(entries)
       } else {
@@ -69,19 +68,19 @@ export const DiaryTimeline: React.FC<DiaryTimelineProps> = ({
           return [...prev, ...newEntries]
         })
       }
-      prevOffsetRef.current = offset
+      prevPageRef.current = page
       prevTagsRef.current = [...selectedTagIds]
       prevDateRef.current = selectedDate
     }
-  }, [entries, offset, selectedTagIds, selectedDate])
+  }, [entries, page, selectedTagIds, selectedDate])
 
-  // Reset offset when filters change
+  // Reset page when filters change
   useEffect(() => {
     const tagsChanged = JSON.stringify(prevTagsRef.current) !== JSON.stringify(selectedTagIds)
     const dateChanged = prevDateRef.current !== selectedDate
 
     if ((tagsChanged && selectedTagIds.length !== prevTagsRef.current.length) || dateChanged) {
-      setOffset(0)
+      setPage(1)
       setAllEntries([])
     }
   }, [selectedTagIds, selectedDate])
@@ -94,7 +93,7 @@ export const DiaryTimeline: React.FC<DiaryTimelineProps> = ({
       (entries) => {
         if (entries[0].isIntersecting && entries && entries.length > 0) {
           // Load more entries
-          setOffset((prev) => prev + ITEMS_PER_PAGE)
+          setPage((prev) => prev + 1)
         }
       },
       { threshold: 0.1 }
@@ -114,6 +113,11 @@ export const DiaryTimeline: React.FC<DiaryTimelineProps> = ({
       onEntryClick(entry)
     }
   }
+
+  // Filter entries by date on client side (backend doesn't support date filtering yet)
+  const filteredEntries = selectedDate
+    ? allEntries.filter((entry) => entry.date === selectedDate)
+    : allEntries
 
   // Color mode values
   const textSecondary = useColorModeValue('gray.600', 'gray.400')
@@ -176,7 +180,7 @@ export const DiaryTimeline: React.FC<DiaryTimelineProps> = ({
         )}
 
         {/* Loading State */}
-        {isLoading && allEntries.length === 0 && (
+        {isLoading && filteredEntries.length === 0 && (
           <Center py={12}>
             <VStack spacing={4}>
               <Spinner size="lg" colorScheme="purple" />
@@ -193,7 +197,7 @@ export const DiaryTimeline: React.FC<DiaryTimelineProps> = ({
         )}
 
         {/* Empty State */}
-        {!isLoading && allEntries.length === 0 && !error && (
+        {!isLoading && filteredEntries.length === 0 && !error && (
           <Center py={16}>
             <VStack spacing={6} maxW="md" textAlign="center">
               <Box
@@ -232,7 +236,7 @@ export const DiaryTimeline: React.FC<DiaryTimelineProps> = ({
         )}
 
         {/* Entries List */}
-        {allEntries.length > 0 && (
+        {filteredEntries.length > 0 && (
           <motion.div
             variants={containerVariants}
             initial="hidden"
@@ -240,7 +244,7 @@ export const DiaryTimeline: React.FC<DiaryTimelineProps> = ({
           >
             <AnimatePresence>
               <VStack spacing={4} align="stretch">
-                {allEntries.map((entry) => (
+                {filteredEntries.map((entry) => (
                   <motion.div key={entry.id} variants={itemVariants}>
                     <DiaryEntry
                       entry={entry}

@@ -79,12 +79,14 @@ export interface CheckinStats {
 export interface DiaryEntry {
   id: number;
   user_id: number;
-  title: string;
+  title: string | null;
   content: string;
+  date: string; // YYYY-MM-DD format
   created_at: string;
   updated_at: string;
   // Populated when joined
   tags?: DiaryTag[];
+  mood_snapshot?: string[];
 }
 
 export interface DiaryTag {
@@ -241,9 +243,10 @@ export interface CreateCheckinResponse {
 
 // Diary
 export interface CreateDiaryEntryRequest {
-  title: string;
+  title?: string;
   content: string;
   tag_ids?: number[];
+  source_checkin_ids?: string[];
 }
 
 export interface UpdateDiaryEntryRequest {
@@ -253,10 +256,9 @@ export interface UpdateDiaryEntryRequest {
 }
 
 export interface GetDiaryEntriesRequest {
+  page?: number;
   limit?: number;
-  offset?: number;
   tags?: string;
-  date?: string;
 }
 
 // Pet

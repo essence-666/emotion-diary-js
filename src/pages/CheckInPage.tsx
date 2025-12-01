@@ -29,8 +29,8 @@ const CheckInPage = () => {
   const textSecondary = useColorModeValue('gray.600', 'gray.400')
 
   // Fetch check-in data
-  const { data: checkins, isLoading: checkinsLoading } = useGetCheckinsQuery({ limit: 10, offset: 0 })
-  const { data: stats, isLoading: statsLoading } = useGetCheckinStatsQuery()
+  const { data: checkins = [], isLoading: checkinsLoading } = useGetCheckinsQuery({ page: 1, limit: 10 })
+  const { data: stats, isLoading: statsLoading } = useGetCheckinStatsQuery({ days: 7 })
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -129,7 +129,7 @@ const CheckInPage = () => {
                       <Text color={textSecondary}>Loading check-ins...</Text>
                     </VStack>
                   </Center>
-                ) : !checkins || checkins.length === 0 ? (
+                ) : checkins.length === 0 ? (
                   <Center py={8} data-testid="checkins-empty-state">
                     <VStack spacing={3}>
                       <Text fontSize="4xl">📊</Text>
@@ -244,7 +244,7 @@ const CheckInPage = () => {
                       <Text color={textSecondary}>Loading check-ins...</Text>
                     </VStack>
                   </Center>
-                ) : !checkins || checkins.length === 0 ? (
+                ) : checkins.length === 0 ? (
                   <Center py={8} data-testid="checkins-empty-state">
                     <VStack spacing={3}>
                       <Text fontSize="4xl">📊</Text>

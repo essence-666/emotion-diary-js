@@ -8,7 +8,7 @@ import { useGetAnalyticsQuery } from '../__data__/api'
 
 const AnalyticsPage = () => {
   const {
-    error, data, isLoading
+    error, data = [], isLoading
   } = useGetAnalyticsQuery(undefined, {})
   
   if (isLoading) {
