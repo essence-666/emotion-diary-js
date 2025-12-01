@@ -285,12 +285,24 @@ const createCustomAnimation = (
     // Bounce up animation - target body/root bone
     const times = [0, 0.3, 0.6, 0.9, 1.2, 1.5]
     const positionValues = [
-      0, 0, 0,    // start
-      0, 0.15, 0, // jump up
-      0, 0, 0,    // land
-      0, 0.1, 0,  // small bounce
-      0, 0, 0,    // land
-      0, 0, 0,    // end
+      0,
+      0,
+      0, // start
+      0,
+      0.15,
+      0, // jump up
+      0,
+      0,
+      0, // land
+      0,
+      0.1,
+      0, // small bounce
+      0,
+      0,
+      0, // land
+      0,
+      0,
+      0, // end
     ]
 
     // If we have bone names, target the body bone, otherwise target root
@@ -312,51 +324,107 @@ const createCustomAnimation = (
 
     // Head rotation (wiggle)
     const headRotationValues = [
-      0, 0, 0,          // start
-      0, 0, 0.15,       // wiggle right
-      0, 0, -0.15,      // wiggle left
-      0, 0, 0.12,       // wiggle right
-      0, 0, -0.12,      // wiggle left
-      0, 0, 0.08,       // wiggle right
-      0, 0, -0.08,      // wiggle left
-      0, 0, 0.05,       // small wiggle
-      0, 0, -0.05,      // small wiggle
-      0, 0, 0,          // center
-      0, 0, 0,          // end
+      0,
+      0,
+      0, // start
+      0,
+      0,
+      0.15, // wiggle right
+      0,
+      0,
+      -0.15, // wiggle left
+      0,
+      0,
+      0.12, // wiggle right
+      0,
+      0,
+      -0.12, // wiggle left
+      0,
+      0,
+      0.08, // wiggle right
+      0,
+      0,
+      -0.08, // wiggle left
+      0,
+      0,
+      0.05, // small wiggle
+      0,
+      0,
+      -0.05, // small wiggle
+      0,
+      0,
+      0, // center
+      0,
+      0,
+      0, // end
     ]
 
     // Body scale pulse
     const bodyScaleValues = [
-      1, 1, 1,          // start
-      1.03, 1.03, 1.03, // grow
-      1, 1, 1,          // normal
-      1.03, 1.03, 1.03, // grow
-      1, 1, 1,          // normal
-      1.02, 1.02, 1.02, // small grow
-      1, 1, 1,          // normal
-      1.02, 1.02, 1.02, // small grow
-      1, 1, 1,          // normal
-      1, 1, 1,          // normal
-      1, 1, 1,          // end
+      1,
+      1,
+      1, // start
+      1.03,
+      1.03,
+      1.03, // grow
+      1,
+      1,
+      1, // normal
+      1.03,
+      1.03,
+      1.03, // grow
+      1,
+      1,
+      1, // normal
+      1.02,
+      1.02,
+      1.02, // small grow
+      1,
+      1,
+      1, // normal
+      1.02,
+      1.02,
+      1.02, // small grow
+      1,
+      1,
+      1, // normal
+      1,
+      1,
+      1, // normal
+      1,
+      1,
+      1, // end
     ]
 
     const headPath = targetBones?.head || '.'
     const bodyPath = targetBones?.body || '.'
 
     tracks.push(
-      new THREE.VectorKeyframeTrack(`${headPath}.rotation`, times, headRotationValues),
-      new THREE.VectorKeyframeTrack(`${bodyPath}.scale`, times, bodyScaleValues),
+      new THREE.VectorKeyframeTrack(
+        `${headPath}.rotation`,
+        times,
+        headRotationValues,
+      ),
+      new THREE.VectorKeyframeTrack(
+        `${bodyPath}.scale`,
+        times,
+        bodyScaleValues,
+      ),
     )
 
     // Add ear wiggles if ear bones are provided
     if (targetBones?.ears && targetBones.ears.length > 0) {
       targetBones.ears.forEach((earPath, index) => {
         const direction = index % 2 === 0 ? 1 : -1 // Alternate directions
-        const earRotationValues = headRotationValues.map((v, i) =>
-          i % 3 === 2 ? v * 0.5 * direction : v // Only modify Z rotation
+        const earRotationValues = headRotationValues.map(
+          (v, i) => (i % 3 === 2 ? v * 0.5 * direction : v), // Only modify Z rotation
         )
         tracks.push(
-          new THREE.VectorKeyframeTrack(`${earPath}.rotation`, times, earRotationValues),
+          new THREE.VectorKeyframeTrack(
+            `${earPath}.rotation`,
+            times,
+            earRotationValues,
+          ),
         )
       })
     }
@@ -370,33 +438,73 @@ const createCustomAnimation = (
 
     // Head position (bob up and down)
     const headPositionValues = [
-      0, 0, 0,      // start
-      0, 0.08, 0,   // up
-      0, 0, 0,      // down
-      0, 0.06, 0,   // up
-      0, 0, 0,      // down
-      0, 0.05, 0,   // up
-      0, 0, 0,      // down
-      0, 0, 0,      // end
+      0,
+      0,
+      0, // start
+      0,
+      0.08,
+      0, // up
+      0,
+      0,
+      0, // down
+      0,
+      0.06,
+      0, // up
+      0,
+      0,
+      0, // down
+      0,
+      0.05,
+      0, // up
+      0,
+      0,
+      0, // down
+      0,
+      0,
+      0, // end
     ]
 
     // Head rotation (sway)
     const headRotationValues = [
-      0, 0, 0,       // start
-      0, 0.08, 0,    // turn right
-      0, -0.08, 0,   // turn left
-      0, 0.06, 0,    // turn right
-      0, -0.06, 0,   // turn left
-      0, 0.04, 0,    // turn right
-      0, 0, 0,       // center
-      0, 0, 0,       // end
+      0,
+      0,
+      0, // start
+      0,
+      0.08,
+      0, // turn right
+      0,
+      -0.08,
+      0, // turn left
+      0,
+      0.06,
+      0, // turn right
+      0,
+      -0.06,
+      0, // turn left
+      0,
+      0.04,
+      0, // turn right
+      0,
+      0,
+      0, // center
+      0,
+      0,
+      0, // end
     ]
 
     const headPath = targetBones?.head || '.'
 
     tracks.push(
-      new THREE.VectorKeyframeTrack(`${headPath}.position`, times, headPositionValues),
-      new THREE.VectorKeyframeTrack(`${headPath}.rotation`, times, headRotationValues),
+      new THREE.VectorKeyframeTrack(
+        `${headPath}.position`,
+        times,
+        headPositionValues,
+      ),
+      new THREE.VectorKeyframeTrack(
+        `${headPath}.rotation`,
+        times,
+        headRotationValues,
+      ),
     )
 
     return new THREE.AnimationClip('custom_talk', 1.5, tracks)
@@ -410,7 +518,9 @@ const createCustomAnimation = (
  * Finds bones in the GLTF scene for animation targeting
  * Returns paths to head, body, and ear bones if found
  */
-const findAnimationBones = (scene: THREE.Object3D): {
+const findAnimationBones = (
+  scene: THREE.Object3D,
+): {
   body?: string
   head?: string
   ears?: string[]
@@ -423,19 +533,19 @@ const findAnimationBones = (scene: THREE.Object3D): {
     // Look for head bone
     if (!bones.head && (name.includes('head') || name.includes('neck'))) {
       bones.head = child.name
-      console.log('Found head bone:', child.name)
     }
 
     // Look for body/spine bone
-    if (!bones.body && (name.includes('spine') || name.includes('body') || name.includes('hips'))) {
+    if (
+      !bones.body &&
+      (name.includes('spine') || name.includes('body') || name.includes('hips'))
+    ) {
       bones.body = child.name
-      console.log('Found body bone:', child.name)
     }
 
     // Look for ear bones
     if (name.includes('ear')) {
       bones.ears!.push(child.name)
-      console.log('Found ear bone:', child.name)
     }
   })
 
@@ -530,12 +640,6 @@ const PetModel: React.FC<{
     // Fix model to sit on ground (Y=0)
     fixModelOnGround(gltf)
 
-    // Debug: Log available animations
-    console.log(
-      'Available animations:',
-      gltf.animations?.map((a) => a.name),
-    )
-
     // Notify that model loaded successfully
     if (onLoadSuccess) {
       onLoadSuccess()
@@ -584,41 +688,18 @@ const PetModel: React.FC<{
   useEffect(() => {
     if (!mixer || !groupRef.current || !gltf?.scene) return
 
-    console.log(
-      'Creating custom animations for groupRef:',
-      groupRef.current.uuid,
-    )
-
     // Find bones in the model for animation targeting
     const bones = findAnimationBones(gltf.scene)
-    console.log('Animation bones found:', bones)
 
     // Create custom animation clips targeting the found bones
     const feedClip = createCustomAnimation('feed', bones)
     const petClip = createCustomAnimation('pet', bones)
     const talkClip = createCustomAnimation('talk', bones)
 
-    console.log('Feed clip:', feedClip.name, 'tracks:', feedClip.tracks.length)
-    feedClip.tracks.forEach((track) => {
-      console.log('  Track:', track.name, 'times:', track.times.length)
-    })
-    console.log('Pet clip:', petClip.name, 'tracks:', petClip.tracks.length)
-    petClip.tracks.forEach((track) => {
-      console.log('  Track:', track.name, 'times:', track.times.length)
-    })
-    console.log('Talk clip:', talkClip.name, 'tracks:', talkClip.tracks.length)
-    talkClip.tracks.forEach((track) => {
-      console.log('  Track:', track.name, 'times:', track.times.length)
-    })
-
     // Create actions from custom clips, applying them to the gltf.scene (where the bones are)
     const feedAction = mixer.clipAction(feedClip, gltf.scene)
     const petAction = mixer.clipAction(petClip, gltf.scene)
     const talkAction = mixer.clipAction(talkClip, gltf.scene)
-
-    console.log('Feed action created:', !!feedAction)
-    console.log('Pet action created:', !!petAction)
-    console.log('Talk action created:', !!talkAction)
 
     // Configure actions
     feedAction.setLoop(THREE.LoopOnce, 1)
@@ -635,8 +716,6 @@ const PetModel: React.FC<{
       custom_pet: petAction,
       custom_talk: talkAction,
     }
-
-    console.log('Custom animations created and stored in ref')
   }, [mixer, groupRef, gltf])
 
   // Play animations when state changes
@@ -646,27 +725,18 @@ const PetModel: React.FC<{
     const animationName = getAnimationName(animationState)
     if (!animationName) return
 
-    console.log('Switching to animation:', animationName)
-
     // Get the action - either from built-in animations or custom ones
     let action: THREE.AnimationAction | null = null
 
     if (animationName.startsWith('custom_')) {
       // Custom animation - get from our ref
-      action = customActionsRef.current[animationName as keyof typeof customActionsRef.current] || null
-      console.log('Found custom action from ref:', !!action)
-      if (action) {
-        console.log('Custom action details:', {
-          name: animationName,
-          time: action.time,
-          isRunning: action.isRunning(),
-          paused: action.paused,
-        })
-      }
+      action =
+        customActionsRef.current[
+          animationName as keyof typeof customActionsRef.current
+        ] || null
     } else {
       // Built-in animation from GLB
       action = actions?.[animationName] || null
-      console.log('Found built-in action:', !!action)
     }
 
     if (!action) {
@@ -686,7 +756,6 @@ const PetModel: React.FC<{
     // Also stop other custom animations if switching away
     Object.entries(customActionsRef.current).forEach(([name, customAction]) => {
       if (customAction && customAction !== action) {
-        console.log('Stopping custom animation:', name)
         customAction.fadeOut(0.3)
       }
     })
@@ -699,14 +768,12 @@ const PetModel: React.FC<{
       action.clampWhenFinished = true
       action.fadeIn(0.2)
       action.play()
-      console.log('Playing custom animation:', animationName, 'weight:', action.getEffectiveWeight())
     } else {
       // Built-in animations loop
       action.reset()
       action.setLoop(THREE.LoopRepeat, Infinity)
       action.fadeIn(0.3)
       action.play()
-      console.log('Playing built-in animation:', animationName)
     }
 
     return () => {
@@ -725,12 +792,9 @@ const PetModel: React.FC<{
   useEffect(() => {
     if (!actions || Object.keys(actions).length === 0) return
 
-    console.log('Available actions:', Object.keys(actions))
-
     const defaultAnimation = 'Armature.001|Idle'
     const action = actions[defaultAnimation]
     if (action) {
-      console.log('Playing default Idle animation')
       action.play()
     } else {
       console.warn('Idle animation not found in actions')
@@ -753,8 +817,8 @@ const PetModel: React.FC<{
       <group position={[0, 0, 0]}>
         <primitive
           object={gltf.scene}
-          scale={[0.5, 0.5, 0.5]}
-          rotation={[0, Math.PI, 0]}
+          scale={[0.333, 0.333, 0.333]}
+          rotation={[0, 0, 0]}
         />
       </group>
       <ContactShadows
