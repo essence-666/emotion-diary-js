@@ -42,7 +42,7 @@ const getToken = () => localStorage.getItem('auth_token')
 // Development mode check - TEMPORARILY FORCED TO TRUE
 // The backend API endpoints for diary aren't implemented yet, so we use mocks
 // TODO: Change to `process.env.NODE_ENV !== 'production'` when backend is ready
-const isDevelopment = process.env.NODE_ENV
+const isDevelopment = process.env.NODE_ENV === 'development'
 
 // Debug logging (remove in production)
 if (typeof window !== 'undefined') {
