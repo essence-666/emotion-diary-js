@@ -4,7 +4,7 @@ const path = require('path')
 const CopyWebpackPlugin = require('copy-webpack-plugin')
 
 module.exports = {
-  apiPath: 'https://emotion-diary.aquaf1na.fun/api/v1',
+  apiPath: 'stubs/api',
   webpackConfig: {
     output: {
       publicPath: `/static/${pkg.name}/${process.env.VERSION || pkg.version}/`,
