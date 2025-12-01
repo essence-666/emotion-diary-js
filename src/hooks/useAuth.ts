@@ -10,12 +10,14 @@ import {
   selectAuthLoading,
   selectAuthError,
   selectIsPremium,
+  updateSubscriptionTier,
 } from '../__data__/slices/authSlice'
 import {
   useLoginMutation,
   useRegisterMutation,
   useLogoutMutation,
   useRefreshTokenMutation,
+  useGetSubscriptionStatusQuery,
 } from '../__data__/api'
 import { authService } from '../service/auth'
 import { isMockAuthEnabled, getMockAuthResponse, getMockUser } from '../utils/mockAuth'
@@ -35,13 +37,31 @@ export const useAuth = () => {
   const [logoutMutation] = useLogoutMutation()
   const [refreshTokenMutation] = useRefreshTokenMutation()
 
-  // Check for stored token on mount (or use mock auth in dev)
+  // Fetch subscription status when authenticated (skip for now due to 404 errors)
+  const { data: subscriptionStatus } = useGetSubscriptionStatusQuery(undefined, {
+    skip: true, // Temporarily disabled due to backend 404
+  })
+
+  // Sync subscription tier from backend when status is fetched
+  useEffect(() => {
+    if (subscriptionStatus?.subscription?.is_active) {
+      const tier = subscriptionStatus.subscription.tier
+      // Only update if tier is premium or premium_annual
+      if (tier === 'premium' || tier === 'premium_annual') {
+        dispatch(updateSubscriptionTier('premium'))
+      } else {
+        dispatch(updateSubscriptionTier('free'))
+      }
+    }
+  }, [subscriptionStatus, dispatch])
+
+  // Check for stored token on mount
   useEffect(() => {
     const checkAuth = () => {
       // Set loading state to prevent premature redirects
       dispatch(setLoading(true))
 
-      // Development: Use mock auth if enabled
+      // Development: Use mock auth only if explicitly enabled
       if (isMockAuthEnabled()) {
         const mockResponse = getMockAuthResponse()
         authService.setToken(mockResponse.token)

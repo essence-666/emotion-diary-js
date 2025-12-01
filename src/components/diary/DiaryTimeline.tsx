@@ -116,7 +116,7 @@ export const DiaryTimeline: React.FC<DiaryTimelineProps> = ({
 
   // Filter entries by date on client side (backend doesn't support date filtering yet)
   const filteredEntries = selectedDate
-    ? allEntries.filter((entry) => entry.date === selectedDate)
+    ? allEntries.filter((entry) => (entry.entry_date || entry.date) === selectedDate)
     : allEntries
 
   // Color mode values

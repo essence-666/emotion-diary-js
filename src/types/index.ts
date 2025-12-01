@@ -81,12 +81,16 @@ export interface DiaryEntry {
   user_id: number;
   title: string | null;
   content: string;
-  date: string; // YYYY-MM-DD format
+  entry_date: string; // YYYY-MM-DD format (from backend)
+  date?: string; // Alias for entry_date for compatibility
   created_at: string;
   updated_at: string;
   // Populated when joined
   tags?: DiaryTag[];
   mood_snapshot?: string[];
+  source_checkin_ids?: string[];
+  is_private?: boolean;
+  ai_summary?: string;
 }
 
 export interface DiaryTag {
@@ -199,6 +203,14 @@ export interface MoodTrigger {
   recommendation: string;
 }
 
+export interface Recommendation {
+  type: string;
+  priority: 'high' | 'medium' | 'low';
+  title: string;
+  description: string;
+  action?: string;
+}
+
 // ----------------------------------------------------------------------------
 // API Request/Response Types
 // ----------------------------------------------------------------------------
@@ -286,8 +298,18 @@ export interface CreateSubscriptionRequest {
 
 export interface SubscriptionStatusResponse {
   ok: boolean;
-  subscription: Subscription | null;
-  isPremium: boolean;
+  subscription: {
+    tier: 'premium' | 'premium_annual' | 'free';
+    is_active: boolean;
+    expires_at: string;
+    details?: {
+      id: number;
+      tier: string;
+      start_date: string;
+      end_date: string;
+      payment_method: string;
+    };
+  } | null;
 }
 
 // ----------------------------------------------------------------------------

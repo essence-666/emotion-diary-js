@@ -24,6 +24,8 @@ import type {
   DeleteAccountRequest,
   ExportDataResponse,
   User, SubscriptionTier,
+  SubscriptionStatusResponse,
+  Recommendation,
 } from '../types'
 import { getConfigValue } from '@brojs/cli'
 
@@ -104,6 +106,8 @@ export const api = createApi({
       { page?: number; limit?: number }
     >({
       query: ({ page = 1, limit = 20 }) => `/checkins?page=${page}&limit=${limit}`,
+      transformResponse: (response: { ok: boolean; checkins: MoodCheckin[] }) =>
+        response.checkins || [],
       providesTags: ['Checkin'],
     }),
     getDailyCheckins: builder.query<MoodCheckin[], { date: string }>({
@@ -176,6 +180,8 @@ export const api = createApi({
         if (tags) params.append('tags', tags)
         return `/diary?${params.toString()}`
       },
+      transformResponse: (response: { ok: boolean; entries: DiaryEntry[] }) =>
+        response.entries || [],
       providesTags: ['Diary'],
     }),
     createDiaryEntry: builder.mutation<
@@ -212,6 +218,14 @@ export const api = createApi({
       { year: number; month: number }
     >({
       query: ({ year, month }) => `/diary/monthly?year=${year}&month=${month}`,
+      transformResponse: (response: { ok: boolean; year: number; month: number; heat_map: Record<string, { entry_count: number; checkin_count: number }> }) => {
+        const heatMap = response.heat_map || {}
+        return Object.entries(heatMap).map(([date, data]) => ({
+          date,
+          emotion_count: data.entry_count + data.checkin_count,
+          emotions: [], // Backend doesn't provide emotion names in this endpoint
+        }))
+      },
       providesTags: ['Diary'],
     }),
 
@@ -275,6 +289,33 @@ export const api = createApi({
         body
       }),
       invalidatesTags: ['Auth'],
+    }),
+    getSubscriptionStatus: builder.query<SubscriptionStatusResponse, void>({
+      query: () => '/subscriptions/status',
+      providesTags: ['Auth'],
+    }),
+    cancelSubscription: builder.mutation<{ ok: boolean; message: string }, void>({
+      query: () => ({
+        url: '/subscriptions/cancel',
+        method: 'POST',
+      }),
+      invalidatesTags: ['Auth'],
+    }),
+
+    // ========================================================================
+    // Insights Endpoints (Premium)
+    // ========================================================================
+    getWeeklyInsights: builder.query<{ ok: boolean; ai_analysis: string; statistics: CheckinStats }, void>({
+      query: () => '/insights/weekly',
+      providesTags: ['Checkin'],
+    }),
+    getTriggers: builder.query<{ ok: boolean; triggers: MoodTrigger[]; ai_analysis: string }, void>({
+      query: () => '/insights/triggers',
+      providesTags: ['Checkin'],
+    }),
+    getRecommendations: builder.query<{ ok: boolean; recommendations: Recommendation[]; ai_analysis?: string }, void>({
+      query: () => '/insights/recommendations',
+      providesTags: ['Checkin'],
     }),
 
     // ========================================================================
@@ -344,6 +385,12 @@ export const {
   useDeleteAccountMutation,
   useExportDataQuery,
   useCreateSubscriptionMutation,
+  useGetSubscriptionStatusQuery,
+  useCancelSubscriptionMutation,
+  // Insights
+  useGetWeeklyInsightsQuery,
+  useGetTriggersQuery,
+  useGetRecommendationsQuery,
   // Legacy
   useGenerateImageMutation,
   useGetAnalyticsQuery,

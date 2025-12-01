@@ -13,7 +13,8 @@ const MOCK_TIER_KEY = 'MOCK_USER_TIER'
  * Check if mock auth is enabled
  */
 export const isMockAuthEnabled = (): boolean => {
-  return localStorage.getItem(MOCK_AUTH_KEY) === 'true' || process.env.NODE_ENV === 'development'
+  // Only enable if explicitly set in localStorage
+  return localStorage.getItem(MOCK_AUTH_KEY) === 'true'
 }
 
 /**
@@ -70,6 +71,7 @@ export const getMockUser = (tier?: 'free' | 'premium'): User => {
 export const getMockAuthResponse = (tier?: 'free' | 'premium'): AuthResponse => {
   const userTier = tier || getMockUserTier()
   return {
+    ok: true,
     token: generateMockToken(userTier),
     refreshToken: generateMockToken(userTier),
     user: getMockUser(userTier),
@@ -110,14 +112,6 @@ export const logMockAuthStatus = () => {
   }
 }
 
-// Auto-enable in development
-if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
-  // Only enable if not explicitly disabled
-  if (localStorage.getItem(MOCK_AUTH_KEY) !== 'false') {
-    enableMockAuth()
-  }
-}
-
 // Make utilities available in console for development
 if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
   (window as any).mockAuth = {
@@ -127,4 +121,5 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
     status: logMockAuthStatus,
   }
   console.log('🛠️  Mock auth utilities available: window.mockAuth')
+  console.log('💡 To enable mock auth: window.mockAuth.enable()')
 }

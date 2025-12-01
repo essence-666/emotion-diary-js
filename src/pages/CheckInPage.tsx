@@ -21,16 +21,23 @@ import { QuickCheckIn } from '../components/checkin/QuickCheckIn'
 import { useGetCheckinsQuery, useGetCheckinStatsQuery } from '../__data__/api'
 import type { MoodCheckin } from '../types'
 
+import { useAuth } from '../hooks/useAuth'
+
 const CheckInPage = () => {
   const [isMobile] = useMediaQuery('(max-width: 768px)')
   const bgColor = useColorModeValue('gray.50', 'gray.900')
   const cardBg = useColorModeValue('white', 'gray.800')
   const borderColor = useColorModeValue('gray.200', 'gray.600')
   const textSecondary = useColorModeValue('gray.600', 'gray.400')
+  const { isPremium } = useAuth()
 
   // Fetch check-in data
   const { data: checkins = [], isLoading: checkinsLoading } = useGetCheckinsQuery({ page: 1, limit: 10 })
-  const { data: stats, isLoading: statsLoading } = useGetCheckinStatsQuery({ days: 7 })
+  // Only fetch stats for premium users (it's a premium feature)
+  const { data: stats, isLoading: statsLoading } = useGetCheckinStatsQuery(
+    { days: 7 },
+    { skip: !isPremium }
+  )
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -68,36 +75,38 @@ const CheckInPage = () => {
           {isMobile ? (
             <VStack spacing={6} align="stretch" data-testid="checkin-mobile-layout">
               {/* Statistics Section */}
-              <Box
-                bg={cardBg}
-                borderRadius="lg"
-                p={6}
-                borderWidth="1px"
-                borderColor={borderColor}
-                data-testid="statistics-section"
-              >
-                <Heading size="md" mb={4}>
-                  Your Progress
-                </Heading>
-                {statsLoading ? (
-                  <Center py={4}>
-                    <Spinner size="sm" />
-                  </Center>
-                ) : (
-                  <SimpleGrid columns={2} spacing={4} data-testid="streak-info">
-                    <Stat>
-                      <StatLabel>Current Streak</StatLabel>
-                      <StatNumber>{stats?.streak_count || 0}</StatNumber>
-                      <StatHelpText>days in a row</StatHelpText>
-                    </Stat>
-                    <Stat>
-                      <StatLabel>Total Check-ins</StatLabel>
-                      <StatNumber>{stats?.total_checkins || 0}</StatNumber>
-                      <StatHelpText>all time</StatHelpText>
-                    </Stat>
-                  </SimpleGrid>
-                )}
-              </Box>
+              {isPremium ? (
+                <Box
+                  bg={cardBg}
+                  borderRadius="lg"
+                  p={6}
+                  borderWidth="1px"
+                  borderColor={borderColor}
+                  data-testid="statistics-section"
+                >
+                  <Heading size="md" mb={4}>
+                    Your Progress
+                  </Heading>
+                  {statsLoading ? (
+                    <Center py={4}>
+                      <Spinner size="sm" />
+                    </Center>
+                  ) : (
+                    <SimpleGrid columns={2} spacing={4} data-testid="streak-info">
+                      <Stat>
+                        <StatLabel>Current Streak</StatLabel>
+                        <StatNumber>{stats?.streak_count || 0}</StatNumber>
+                        <StatHelpText>days in a row</StatHelpText>
+                      </Stat>
+                      <Stat>
+                        <StatLabel>Total Check-ins</StatLabel>
+                        <StatNumber>{stats?.total_checkins || 0}</StatNumber>
+                        <StatHelpText>all time</StatHelpText>
+                      </Stat>
+                    </SimpleGrid>
+                  )}
+                </Box>
+              ) : null}
 
               {/* Quick Check-In Form */}
               <Box
@@ -182,36 +191,38 @@ const CheckInPage = () => {
               {/* Left Column: Quick Check-In + Statistics */}
               <VStack spacing={6} align="stretch">
                 {/* Statistics Section */}
-                <Box
-                  bg={cardBg}
-                  borderRadius="lg"
-                  p={6}
-                  borderWidth="1px"
-                  borderColor={borderColor}
-                  data-testid="statistics-section"
-                >
-                  <Heading size="md" mb={4}>
-                    Your Progress
-                  </Heading>
-                  {statsLoading ? (
-                    <Center py={4}>
-                      <Spinner size="sm" />
-                    </Center>
-                  ) : (
-                    <SimpleGrid columns={2} spacing={4} data-testid="streak-info">
-                      <Stat>
-                        <StatLabel>Current Streak</StatLabel>
-                        <StatNumber>{stats?.streak_count || 0}</StatNumber>
-                        <StatHelpText>days in a row</StatHelpText>
-                      </Stat>
-                      <Stat>
-                        <StatLabel>Total Check-ins</StatLabel>
-                        <StatNumber>{stats?.total_checkins || 0}</StatNumber>
-                        <StatHelpText>all time</StatHelpText>
-                      </Stat>
-                    </SimpleGrid>
-                  )}
-                </Box>
+                {isPremium ? (
+                  <Box
+                    bg={cardBg}
+                    borderRadius="lg"
+                    p={6}
+                    borderWidth="1px"
+                    borderColor={borderColor}
+                    data-testid="statistics-section"
+                  >
+                    <Heading size="md" mb={4}>
+                      Your Progress
+                    </Heading>
+                    {statsLoading ? (
+                      <Center py={4}>
+                        <Spinner size="sm" />
+                      </Center>
+                    ) : (
+                      <SimpleGrid columns={2} spacing={4} data-testid="streak-info">
+                        <Stat>
+                          <StatLabel>Current Streak</StatLabel>
+                          <StatNumber>{stats?.streak_count || 0}</StatNumber>
+                          <StatHelpText>days in a row</StatHelpText>
+                        </Stat>
+                        <Stat>
+                          <StatLabel>Total Check-ins</StatLabel>
+                          <StatNumber>{stats?.total_checkins || 0}</StatNumber>
+                          <StatHelpText>all time</StatHelpText>
+                        </Stat>
+                      </SimpleGrid>
+                    )}
+                  </Box>
+                ) : null}
 
                 {/* Quick Check-In Form */}
                 <Box

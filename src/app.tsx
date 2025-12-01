@@ -8,25 +8,17 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { Dashboard } from './pages/Dashboard'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
-import { Box, Heading } from '@chakra-ui/react'
 import { ThemeProvider } from './components/theme/ThemeProvider'
 import theme from './theme'
 
-// Initialize mock auth in development
+// Mock auth utilities available in development console (window.mockAuth)
+// Use window.mockAuth.enable() to enable mock authentication
 import './utils/mockAuth'
 import DiaryPage from './pages/DiaryPage'
 import CheckInPage from './pages/CheckInPage'
 import SettingsPage from './pages/SettingsPage'
 import PetPage from './pages/PetPage'
-
-// Placeholder pages
-
-const AnalyticsPage = () => (
-  <Box>
-    <Heading mb={4}>Analytics</Heading>
-    <p>Analytics component will go here...</p>
-  </Box>
-)
+import AnalyticsPage from './pages/AnalyticsPage'
 
 const App = () => {
   return (

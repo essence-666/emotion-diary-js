@@ -13,7 +13,7 @@ import {
 } from '@chakra-ui/react'
 import { FaMagic, FaChartBar, FaPalette, FaBell } from 'react-icons/fa'
 import { useAuth } from '../../hooks/useAuth'
-import { useCreateSubscriptionMutation } from '../../__data__/api'
+import { useCreateSubscriptionMutation, useGetSubscriptionStatusQuery } from '../../__data__/api'
 import { useAppDispatch } from '../../__data__/store'
 import { updateSubscriptionTier } from '../../__data__/slices/authSlice'
 
@@ -24,36 +24,95 @@ export const SubscriptionSettings = () => {
   const borderColor = useColorModeValue('gray.200', 'gray.600')
   const isPremium = user?.subscription_tier === 'premium'
   const [createSubscription, { isLoading: isCreatingSubscription }] = useCreateSubscriptionMutation()
+  const { data: subscriptionStatus, refetch: refetchSubscriptionStatus, isLoading: isCheckingStatus } = useGetSubscriptionStatusQuery()
   const toast = useToast()
   const [isProcessing, setIsProcessing] = useState(false)
 
   const handleUpgrade = async () => {
     try {
       setIsProcessing(true)
+
+      // First, check current subscription status
+      const statusCheck = await refetchSubscriptionStatus()
+
+      if (statusCheck.data?.subscription?.is_active) {
+        // User already has an active subscription
+        const tier = statusCheck.data.subscription.tier
+
+        if (tier === 'premium' || tier === 'premium_annual') {
+          // Update Redux state
+          dispatch(updateSubscriptionTier('premium'))
+
+          toast({
+            title: 'Subscription already active',
+            description: 'Your Premium subscription is already active! Please refresh the page to see changes.',
+            status: 'info',
+            duration: 5000,
+            isClosable: true,
+          })
+          return
+        }
+      }
+
+      // Proceed with creating subscription
       const result = await createSubscription({
         tier: 'premium',
         payment_method_id: 'mock_payment_method_123',
       })
-      
+
       if ('data' in result) {
         // Update subscription tier in Redux state
         dispatch(updateSubscriptionTier('premium'))
-        
+
         toast({
           title: 'Subscription created',
-          description: 'Your Premium subscription has been activated!',
+          description: 'Your Premium subscription has been activated! Please refresh the page to access premium features.',
           status: 'success',
           duration: 5000,
           isClosable: true,
         })
       } else if ('error' in result) {
-        toast({
-          title: 'Subscription failed',
-          description: 'Failed to create subscription. Please try again.',
-          status: 'error',
-          duration: 5000,
-          isClosable: true,
-        })
+        // Check if error is due to existing subscription
+        const error = result.error as any
+        const errorMessage = error?.data?.message || ''
+
+        if (errorMessage.includes('активная подписка') || errorMessage.includes('already')) {
+          // User already has an active subscription - sync status from backend
+          toast({
+            title: 'Subscription already active',
+            description: 'Synchronizing your subscription status...',
+            status: 'info',
+            duration: 3000,
+            isClosable: true,
+          })
+
+          // Fetch current subscription status
+          const statusResult = await refetchSubscriptionStatus()
+
+          if (statusResult.data?.subscription?.is_active) {
+            const tier = statusResult.data.subscription.tier
+            // Update Redux state with actual subscription tier
+            if (tier === 'premium' || tier === 'premium_annual') {
+              dispatch(updateSubscriptionTier('premium'))
+
+              toast({
+                title: 'Subscription synchronized',
+                description: 'Your Premium subscription is active! Please refresh the page to access premium features.',
+                status: 'success',
+                duration: 5000,
+                isClosable: true,
+              })
+            }
+          }
+        } else {
+          toast({
+            title: 'Subscription failed',
+            description: 'Failed to create subscription. Please try again.',
+            status: 'error',
+            duration: 5000,
+            isClosable: true,
+          })
+        }
       }
     } catch (_error) {
       toast({
@@ -111,11 +170,11 @@ export const SubscriptionSettings = () => {
                 <Text fontSize="sm">Priority support</Text>
               </HStack>
             </VStack>
-            <Button 
-              colorScheme="purple" 
+            <Button
+              colorScheme="purple"
               width="full"
               onClick={handleUpgrade}
-              isLoading={isCreatingSubscription || isProcessing}
+              isLoading={isCreatingSubscription || isProcessing || isCheckingStatus}
               loadingText="Processing..."
             >
               Upgrade to Premium
