@@ -624,10 +624,11 @@ export const api = createApi({
     exportData: builder.query<{ ok: boolean; data: ExportDataResponse }, void>({
       query: () => '/auth/export-data',
     }),
-    createSubscription: builder.mutation<{tier: SubscriptionTier; payment_method_id: string }, void>({
-      query: () => ({
+    createSubscription: builder.mutation<void, {tier: SubscriptionTier; payment_method_id: string }>({
+      query: (body) => ({
         url: 'subscriptions/create',
         method: 'POST',
+        body
       }),
       invalidatesTags: ['Auth'],
     }),

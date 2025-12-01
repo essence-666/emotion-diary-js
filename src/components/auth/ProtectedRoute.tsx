@@ -24,11 +24,14 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const handleUpgrade = async () => {
     try {
       setIsProcessing(true)
-      const result = await createSubscription()
+      const result = await createSubscription({
+        tier: 'premium',
+        payment_method_id: 'mock_payment_method_123',
+      })
       
-      if ('data' in result && result.data) {
+      if ('data' in result) {
         // Update subscription tier in Redux state
-        dispatch(updateSubscriptionTier(result.data.tier))
+        dispatch(updateSubscriptionTier('premium'))
         
         toast({
           title: 'Subscription created',
