@@ -116,6 +116,15 @@ export const api = createApi({
     }),
     getCheckinStats: builder.query<CheckinStats, { days?: number }>({
       query: ({ days = 7 }) => `/checkins/stats?days=${days}`,
+      transformResponse: (response: any) => {
+        // Ensure numeric fields are actual numbers
+        return {
+          ...response,
+          avg_intensity: Number(response.avg_intensity || 0),
+          total_checkins: Number(response.total_checkins || 0),
+          streak_count: Number(response.streak_count || 0),
+        }
+      },
       providesTags: ['Checkin'],
     }),
 
@@ -307,10 +316,38 @@ export const api = createApi({
     // ========================================================================
     getWeeklyInsights: builder.query<{ ok: boolean; ai_analysis: string; statistics: CheckinStats }, void>({
       query: () => '/insights/weekly',
+      transformResponse: (response: any) => {
+        // Ensure statistics numeric fields are actual numbers
+        if (response.statistics) {
+          return {
+            ...response,
+            statistics: {
+              ...response.statistics,
+              avg_intensity: Number(response.statistics.avg_intensity || 0),
+              total_checkins: Number(response.statistics.total_checkins || 0),
+              streak_count: Number(response.statistics.streak_count || 0),
+            }
+          }
+        }
+        return response
+      },
       providesTags: ['Checkin'],
     }),
     getTriggers: builder.query<{ ok: boolean; triggers: MoodTrigger[]; ai_analysis: string }, void>({
       query: () => '/insights/triggers',
+      transformResponse: (response: any) => {
+        // Ensure trigger frequency is a number
+        if (response.triggers) {
+          return {
+            ...response,
+            triggers: response.triggers.map((trigger: any) => ({
+              ...trigger,
+              frequency: Number(trigger.frequency || 0),
+            }))
+          }
+        }
+        return response
+      },
       providesTags: ['Checkin'],
     }),
     getRecommendations: builder.query<{ ok: boolean; recommendations: Recommendation[]; ai_analysis?: string }, void>({

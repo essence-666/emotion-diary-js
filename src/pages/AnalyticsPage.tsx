@@ -205,7 +205,7 @@ const AnalyticsPage = () => {
                   <Stat>
                     <StatLabel>Avg Intensity</StatLabel>
                     <StatNumber>
-                      {weeklyData.statistics.avg_intensity?.toFixed(1) || '0.0'}
+                      {Number(weeklyData.statistics.avg_intensity || 0).toFixed(1)}
                     </StatNumber>
                     <StatHelpText>Out of 10</StatHelpText>
                   </Stat>
