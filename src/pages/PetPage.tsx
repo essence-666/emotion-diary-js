@@ -1,15 +1,18 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo, useRef, useEffect } from 'react'
 import {
   Box,
   VStack,
   Flex,
   Spinner,
   Text,
-  useColorModeValue,
   useToast,
   Alert,
   AlertIcon,
 } from '@chakra-ui/react'
+import { Canvas, useThree } from '@react-three/fiber'
+import { PerspectiveCamera, CameraControls } from '@react-three/drei'
+import type { CameraControls as CameraControlsImpl } from '@react-three/drei'
+import { PCFSoftShadowMap, ACESFilmicToneMapping } from 'three'
 import { AnimatedBackground } from '../components/pet/AnimatedBackground'
 import { PetAvatar, AnimationState } from '../components/pet/PetAvatar'
 import { PetStats } from '../components/pet/PetStats'
@@ -20,13 +23,184 @@ import {
   useFeedPetMutation,
   usePetPetMutation,
   useTalkToPetMutation,
+  useGetCheckinsQuery,
+  useGetDiaryEntriesQuery,
 } from '../__data__/api'
+import type { MoodCheckin, DiaryEntry } from '../types'
+import type { PetMoodState } from '../components/pet/PetAvatar'
+
+/**
+ * Configure renderer shadow maps, tone mapping, and exposure
+ *
+ * Developer Notes:
+ * - ACESFilmicToneMapping: Industry-standard tone mapping that handles HDR gracefully
+ *   Prevents overexposure and provides natural-looking highlights
+ * - toneMappingExposure: Controls overall scene brightness (0.6-1.2 range recommended)
+ *   Lower values = darker scene, higher values = brighter scene
+ *   Start at 0.8 for balanced lighting, adjust based on your scene
+ */
+const RendererConfig: React.FC = () => {
+  const { gl } = useThree()
+
+  useEffect(() => {
+    // Shadow configuration
+    gl.shadowMap.enabled = true
+    gl.shadowMap.type = PCFSoftShadowMap
+
+    // Tone mapping configuration - CRITICAL for preventing overexposure
+    gl.toneMapping = ACESFilmicToneMapping
+    gl.toneMappingExposure = 1.1 // Increased for brighter scene (0.6-1.2 range)
+
+    // Output color space (sRGB for web) - Modern Three.js API
+    // Note: outputEncoding is deprecated in r152+, use outputColorSpace instead
+    if ('outputColorSpace' in gl) {
+      ;(gl as any).outputColorSpace = 'srgb'
+    } else {
+      // Fallback for older Three.js versions
+      ;(gl as any).outputEncoding = 3001 // sRGBEncoding
+    }
+  }, [gl])
+
+  return null
+}
+
+// Idle auto-rotate camera controller - DISABLED for limited rotation
+const IdleCameraController: React.FC = () => {
+  const controlsRef = useRef<CameraControlsImpl>(null)
+
+  // Auto-rotate disabled - user has limited manual control only
+
+  return (
+    <CameraControls
+      ref={controlsRef}
+      makeDefault
+      minDistance={5}
+      maxDistance={12}
+      minPolarAngle={Math.PI / 6}
+      maxPolarAngle={Math.PI / 2.5}
+      minAzimuthAngle={-Math.PI / 9}
+      maxAzimuthAngle={Math.PI / 9}
+      azimuthRotateSpeed={0.3}
+      polarRotateSpeed={0.3}
+      dollySpeed={0.4}
+      truckSpeed={0}
+      enabled={true}
+    />
+  )
+}
+
+// Analyze user mood from checkins and diary entries
+const analyzeUserMood = (
+  checkins: MoodCheckin[] | undefined,
+  diaryEntries: DiaryEntry[] | undefined,
+): { mood: PetMoodState; engagementLevel: number } => {
+  if (!checkins || checkins.length === 0) {
+    return { mood: 'happy', engagementLevel: 50 }
+  }
+
+  // Analyze last 7 days of checkins
+  const sevenDaysAgo = new Date()
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+
+  const recentCheckins = checkins.filter(
+    (checkin) => new Date(checkin.created_at) >= sevenDaysAgo,
+  )
+
+  if (recentCheckins.length === 0) {
+    return { mood: 'happy', engagementLevel: 30 }
+  }
+
+  // Count emotions and calculate average intensity
+  const emotionCounts: Record<string, number> = {}
+  let totalIntensity = 0
+
+  recentCheckins.forEach((checkin) => {
+    const emotionName = checkin.emotion?.name || 'happy'
+    emotionCounts[emotionName] = (emotionCounts[emotionName] || 0) + 1
+    totalIntensity += checkin.intensity
+  })
+
+  const avgIntensity = totalIntensity / recentCheckins.length
+
+  // Calculate engagement level based on checkin frequency and diary activity
+  const checkinFrequency = recentCheckins.length / 7 // Checkins per day
+  const diaryActivity = diaryEntries ? Math.min(diaryEntries.length / 10, 1) : 0
+  const engagementLevel = Math.min(
+    100,
+    checkinFrequency * 20 + diaryActivity * 30 + avgIntensity * 5,
+  )
+
+  // Determine mood based on emotion distribution
+  const happyCount =
+    (emotionCounts.happy || 0) +
+    (emotionCounts.excited || 0) +
+    (emotionCounts.calm || 0)
+  const sadCount = emotionCounts.sad || 0
+  const anxiousCount =
+    (emotionCounts.stressed || 0) + (emotionCounts.angry || 0)
+
+  const totalEmotions = recentCheckins.length
+  const happyRatio = happyCount / totalEmotions
+  const sadRatio = sadCount / totalEmotions
+  const anxiousRatio = anxiousCount / totalEmotions
+
+  // Determine primary mood
+  if (sadRatio > 0.4 && avgIntensity < 5) {
+    return { mood: 'sad', engagementLevel }
+  } else if (anxiousRatio > 0.3 || (anxiousRatio > 0.2 && avgIntensity > 7)) {
+    return { mood: 'anxious', engagementLevel }
+  } else if (happyRatio > 0.5 && avgIntensity > 6) {
+    return { mood: 'happy', engagementLevel }
+  } else {
+    // Default to happy if mixed or unclear
+    return { mood: 'happy', engagementLevel }
+  }
+}
+
+// Helper function to calculate mood color from happiness and emotion
+const calculateMoodColor = (
+  happiness: number,
+  latestCheckin: MoodCheckin | undefined,
+): string => {
+  // Map emotion_id to color hue
+  // 1: happy, 2: sad, 3: angry, 4: calm, 5: stressed, 6: excited
+  const emotionHues: Record<number, number> = {
+    1: 60, // Yellow (happy)
+    2: 240, // Blue (sad)
+    3: 0, // Red (angry)
+    4: 180, // Cyan (calm)
+    5: 30, // Orange (stressed)
+    6: 300, // Magenta (excited)
+  }
+
+  const emotionId = latestCheckin?.emotion_id ?? 1
+  const baseHue = emotionHues[emotionId] ?? 60
+
+  // Happiness affects saturation and lightness
+  // High happiness = high saturation, high lightness
+  // Low happiness = low saturation, low lightness
+  const saturation = Math.max(30, Math.min(100, happiness * 0.7 + 30))
+  const lightness = Math.max(20, Math.min(80, happiness * 0.5 + 30))
+
+  return `hsl(${baseHue}, ${saturation}%, ${lightness}%)`
+}
 
 const PetPage = () => {
   const toast = useToast()
 
   // Fetch pet data
   const { data: pet, isLoading, error } = useGetPetQuery()
+
+  // Fetch checkins for mood analysis (last 7 days worth)
+  const { data: checkins } = useGetCheckinsQuery({ limit: 20, offset: 0 })
+  const latestCheckin =
+    Array.isArray(checkins) && checkins.length > 0 ? checkins[0] : undefined
+
+  // Fetch recent diary entries for engagement level
+  const { data: diaryEntries } = useGetDiaryEntriesQuery({
+    limit: 10,
+    offset: 0,
+  })
 
   // Mutations
   const [feedPet, { isLoading: isFeedingLoading }] = useFeedPetMutation()
@@ -36,13 +210,39 @@ const PetPage = () => {
   // Local state for optimistic updates and animations
   const [localHappiness, setLocalHappiness] = useState<number | null>(null)
   const [animationState, setAnimationState] = useState<AnimationState>('idle')
-  const [dialogue, setDialogue] = useState<string>('')
+  const [dialogues, setDialogues] = useState<
+    Array<{ id: string; message: string }>
+  >([])
 
   // Combined loading state
-  const isInteractionLoading = isFeedingLoading || isPettingLoading || isTalkingLoading
+  const isInteractionLoading =
+    isFeedingLoading || isPettingLoading || isTalkingLoading
+
+  // Helper to add a dialogue message
+  const addDialogue = (message: string) => {
+    const id = `${Date.now()}-${Math.random()}`
+    setDialogues((prev) => [...prev, { id, message }])
+  }
+
+  // Helper to dismiss a dialogue message
+  const dismissDialogue = (id: string) => {
+    setDialogues((prev) => prev.filter((d) => d.id !== id))
+  }
 
   // Use local happiness if available, otherwise use pet data
   const currentHappiness = localHappiness ?? pet?.happiness_level ?? 50
+
+  // Calculate mood color from happiness and latest emotion
+  const moodColor = useMemo(
+    () => calculateMoodColor(currentHappiness, latestCheckin),
+    [currentHappiness, latestCheckin],
+  )
+
+  // Analyze user mood from checkins and diary entries
+  const { mood: moodState, engagementLevel } = useMemo(
+    () => analyzeUserMood(checkins, diaryEntries),
+    [checkins, diaryEntries],
+  )
 
   // Handle Feed interaction
   const handleFeed = async () => {
@@ -51,7 +251,7 @@ const PetPage = () => {
     // Optimistic update
     setLocalHappiness(Math.min(100, currentHappiness + 10))
     setAnimationState('eating')
-    setDialogue('That was delicious!')
+    addDialogue('That was delicious!')
 
     try {
       const result = await feedPet().unwrap()
@@ -72,7 +272,6 @@ const PetPage = () => {
     } catch (err) {
       // Rollback on error
       setLocalHappiness(pet.happiness_level)
-      setDialogue('')
 
       toast({
         title: 'Failed to feed pet',
@@ -84,7 +283,6 @@ const PetPage = () => {
     } finally {
       setTimeout(() => {
         setAnimationState('idle')
-        setDialogue('')
       }, 3000)
     }
   }
@@ -96,7 +294,7 @@ const PetPage = () => {
     // Optimistic update
     setLocalHappiness(Math.min(100, currentHappiness + 5))
     setAnimationState('being_petted')
-    setDialogue('That feels great!')
+    addDialogue('That feels great!')
 
     try {
       const result = await petPet().unwrap()
@@ -117,7 +315,6 @@ const PetPage = () => {
     } catch (err) {
       // Rollback on error
       setLocalHappiness(pet.happiness_level)
-      setDialogue('')
 
       toast({
         title: 'Failed to pet',
@@ -129,7 +326,6 @@ const PetPage = () => {
     } finally {
       setTimeout(() => {
         setAnimationState('idle')
-        setDialogue('')
       }, 3000)
     }
   }
@@ -145,7 +341,7 @@ const PetPage = () => {
     try {
       const result = await talkToPet().unwrap()
       setLocalHappiness(result.pet.happiness_level)
-      setDialogue(result.dialogue)
+      addDialogue(result.dialogue)
 
       toast({
         title: 'Chatted with pet!',
@@ -162,7 +358,7 @@ const PetPage = () => {
     } catch (err) {
       // Rollback on error
       setLocalHappiness(pet.happiness_level)
-      setDialogue('...')
+      addDialogue('...')
 
       toast({
         title: 'Failed to talk',
@@ -174,7 +370,6 @@ const PetPage = () => {
     } finally {
       setTimeout(() => {
         setAnimationState('idle')
-        setDialogue('')
       }, 3000)
     }
   }
@@ -185,20 +380,58 @@ const PetPage = () => {
       <Box
         data-testid="pet-page"
         position="relative"
-        minH="100vh"
+        minH="calc(100vh - 64px)"
+        h="calc(100vh - 64px)"
         overflow="hidden"
       >
-        <AnimatedBackground />
+        <Canvas
+          shadows
+          dpr={[1, 2]}
+          gl={{ preserveDrawingBuffer: true, antialias: true }}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            zIndex: 0,
+          }}
+        >
+          <PerspectiveCamera makeDefault position={[0, 1.2, 7]} fov={35} />
+          <RendererConfig />
+          <ambientLight intensity={0.3} />
+          <directionalLight
+            position={[5, 8, 5]}
+            intensity={0.8}
+            castShadow
+            shadow-mapSize={[2048, 2048]}
+            shadow-bias={-0.0001}
+            shadow-camera-far={50}
+            shadow-camera-left={-15}
+            shadow-camera-right={15}
+            shadow-camera-top={15}
+            shadow-camera-bottom={-15}
+            shadow-normalBias={0.02}
+          />
+          <AnimatedBackground moodColor="#87CEEB" happiness={50} />
+        </Canvas>
         <Flex
-          position="relative"
+          position="absolute"
+          top={0}
+          left={0}
+          right={0}
+          bottom={0}
           zIndex={1}
-          minH="100vh"
           align="center"
           justify="center"
         >
           <VStack spacing={4}>
             <Spinner size="xl" color="purple.500" thickness="4px" />
-            <Text fontSize="lg" color="white" textShadow="0 2px 4px rgba(0,0,0,0.3)">
+            <Text
+              fontSize="lg"
+              color="white"
+              textShadow="0 2px 4px rgba(0,0,0,0.3)"
+            >
               Loading your pet...
             </Text>
           </VStack>
@@ -213,14 +446,48 @@ const PetPage = () => {
       <Box
         data-testid="pet-page"
         position="relative"
-        minH="100vh"
+        minH="calc(100vh - 64px)"
+        h="calc(100vh - 64px)"
         overflow="hidden"
       >
-        <AnimatedBackground />
+        <Canvas
+          shadows
+          dpr={[1, 2]}
+          gl={{ preserveDrawingBuffer: true, antialias: true }}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            zIndex: 0,
+          }}
+        >
+          <PerspectiveCamera makeDefault position={[0, 1.2, 7]} fov={35} />
+          <RendererConfig />
+          <ambientLight intensity={0.3} />
+          <directionalLight
+            position={[5, 8, 5]}
+            intensity={0.8}
+            castShadow
+            shadow-mapSize={[2048, 2048]}
+            shadow-bias={-0.0001}
+            shadow-camera-far={50}
+            shadow-camera-left={-15}
+            shadow-camera-right={15}
+            shadow-camera-top={15}
+            shadow-camera-bottom={-15}
+            shadow-normalBias={0.02}
+          />
+          <AnimatedBackground moodColor="#87CEEB" happiness={50} />
+        </Canvas>
         <Flex
-          position="relative"
+          position="absolute"
+          top={0}
+          left={0}
+          right={0}
+          bottom={0}
           zIndex={1}
-          minH="100vh"
           align="center"
           justify="center"
           p={6}
@@ -236,7 +503,8 @@ const PetPage = () => {
             <VStack align="flex-start" spacing={2}>
               <Text fontWeight="bold">Failed to load pet data</Text>
               <Text fontSize="sm">
-                {(error as any)?.data?.message || 'Please try refreshing the page'}
+                {(error as any)?.data?.message ||
+                  'Please try refreshing the page'}
               </Text>
             </VStack>
           </Alert>
@@ -249,31 +517,113 @@ const PetPage = () => {
     <Box
       data-testid="pet-page"
       position="relative"
-      minH="100vh"
+      minH="calc(100vh - 64px)"
+      h="calc(100vh - 64px)"
       overflow="hidden"
     >
-      {/* Animated Background */}
-      <AnimatedBackground />
+      {/* 3D Canvas Scene */}
+      <Canvas
+        shadows
+        dpr={[1, 2]}
+        gl={{ preserveDrawingBuffer: true, antialias: true }}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          zIndex: 0,
+        }}
+      >
+        {/* Camera - Lower position, closer to ground, facing rabbit from front */}
+        <PerspectiveCamera makeDefault position={[0, 1.2, 7]} fov={35} />
 
-      {/* Game Content */}
+        {/* Configure renderer: shadows, tone mapping, and exposure */}
+        <RendererConfig />
+
+        {/* Camera Controls - idle auto-rotate, dolly to cursor */}
+        <IdleCameraController />
+
+        {/* Soft Shadows for toon style */}
+        {/* <SoftShadows size={25} samples={10} /> */}
+
+        {/* Lighting Setup - Balanced for stylized pet scene */}
+        {/* 
+          Developer Notes:
+          - Ambient light: Provides base illumination, prevents pure black shadows
+            Reduced from 0.4 to 0.3 to prevent flat, over-lit appearance
+          - Directional light: Main sun/key light, reduced from 1.5 to 0.8
+            Position [5, 8, 5] provides nice 45-degree angle lighting
+            With Environment preset="sunset" and Sky component, we get additional
+            HDR lighting, so explicit lights need to be lower
+        */}
+        <ambientLight intensity={0.7} />
+        <directionalLight
+          position={[5, 8, 5]}
+          intensity={1.3}
+          castShadow
+          shadow-mapSize={[2048, 2048]}
+          shadow-bias={-0.0001}
+          shadow-camera-far={50}
+          shadow-camera-left={-15}
+          shadow-camera-right={15}
+          shadow-camera-top={15}
+          shadow-camera-bottom={-15}
+          shadow-normalBias={0.02}
+        />
+
+        {/* 3D Background */}
+        <AnimatedBackground
+          moodColor={moodColor}
+          happiness={currentHappiness}
+        />
+
+        {/* 3D Pet Avatar */}
+        <PetAvatar
+          happiness={currentHappiness}
+          animationState={animationState}
+          cosmeticSkin={pet.cosmetic_skin as any}
+          moodState={moodState}
+          engagementLevel={engagementLevel}
+        />
+
+        {/* Post-Processing Effects - Game Camera Feel */}
+        {/* <EffectComposer disableNormalPass>
+          <Bloom 
+            luminanceThreshold={1.0} 
+            intensity={0.3} 
+            mipmapBlur
+          />
+          <Vignette 
+            eskil={false} 
+            offset={0.1} 
+            darkness={1.1} 
+          />
+          <DepthOfField
+            focusDistance={0.01}
+            focalLength={0.05}
+            bokehScale={3}
+          />
+        </EffectComposer> */}
+      </Canvas>
+
+      {/* Game Content - UI Overlays */}
       <Flex
-        position="relative"
+        position="absolute"
+        top={0}
+        left={0}
+        right={0}
+        bottom={0}
         zIndex={1}
         direction="column"
         align="center"
-        justify="center"
-        minH="100vh"
+        justify="space-between"
         px={4}
-        py={8}
+        py={6}
+        pointerEvents="none"
       >
-        {/* Top HUD: Stats */}
-        <Box
-          position="fixed"
-          top={4}
-          left="50%"
-          transform="translateX(-50%)"
-          zIndex={20}
-        >
+        {/* Top HUD: Stats - positioned at top right */}
+        <Box position="absolute" top={4} right={4} pointerEvents="auto">
           <PetStats
             name={pet.name}
             happiness={currentHappiness}
@@ -282,39 +632,22 @@ const PetPage = () => {
         </Box>
 
         {/* Center: Pet with Dialogue */}
-        <Flex
-          flex={1}
-          align="center"
-          justify="center"
-          position="relative"
-          minH="500px"
-        >
-          <Box position="relative">
-            {/* Dialogue above pet */}
-            {dialogue && (
+        <Flex flex={1} align="center" justify="center" position="relative">
+          <Box position="relative" pointerEvents="auto">
+            {/* Dialogue messages stack */}
+            {dialogues.map((dialogue, index) => (
               <PetDialogue
-                message={dialogue}
-                onDismiss={() => setDialogue('')}
+                key={dialogue.id}
+                message={dialogue.message}
+                index={index}
+                onDismiss={() => dismissDialogue(dialogue.id)}
               />
-            )}
-
-            {/* Pet Avatar */}
-            <PetAvatar
-              happiness={currentHappiness}
-              animationState={animationState}
-              cosmeticSkin={pet.cosmetic_skin as any}
-            />
+            ))}
           </Box>
         </Flex>
 
         {/* Bottom HUD: Interaction Buttons */}
-        <Box
-          position="fixed"
-          bottom={8}
-          left="50%"
-          transform="translateX(-50%)"
-          zIndex={20}
-        >
+        <Box pointerEvents="auto">
           <InteractionButtons
             onFeed={handleFeed}
             onPet={handlePet}

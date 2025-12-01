@@ -1,19 +1,19 @@
-import React from 'react';
-import { ChakraProvider } from '@chakra-ui/react';
-import { Provider } from 'react-redux';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { store } from './__data__/store';
-import { AppLayout } from './components/layout/AppLayout';
-import { ProtectedRoute } from './components/auth/ProtectedRoute';
-import { Dashboard } from './pages/Dashboard';
-import { LoginPage } from './pages/LoginPage';
-import { RegisterPage } from './pages/RegisterPage';
-import { Box, Heading } from '@chakra-ui/react';
-import { ThemeProvider } from './components/theme/ThemeProvider';
-import theme from './theme';
+import React from 'react'
+import { ChakraProvider } from '@chakra-ui/react'
+import { Provider } from 'react-redux'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { store } from './__data__/store'
+import { AppLayout } from './components/layout/AppLayout'
+import { ProtectedRoute } from './components/auth/ProtectedRoute'
+import { Dashboard } from './pages/Dashboard'
+import { LoginPage } from './pages/LoginPage'
+import { RegisterPage } from './pages/RegisterPage'
+import { Box, Heading } from '@chakra-ui/react'
+import { ThemeProvider } from './components/theme/ThemeProvider'
+import theme from './theme'
 
 // Initialize mock auth in development
-import './utils/mockAuth';
+import './utils/mockAuth'
 import DiaryPage from './pages/DiaryPage'
 import CheckInPage from './pages/CheckInPage'
 import SettingsPage from './pages/SettingsPage'
@@ -26,8 +26,7 @@ const AnalyticsPage = () => (
     <Heading mb={4}>Analytics</Heading>
     <p>Analytics component will go here...</p>
   </Box>
-);
-
+)
 
 const App = () => {
   return (
@@ -40,7 +39,6 @@ const App = () => {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
 
-              {/* Protected routes with layout - Pet is now the main page */}
               <Route
                 path="/"
                 element={
@@ -117,7 +115,7 @@ const App = () => {
         </ThemeProvider>
       </ChakraProvider>
     </Provider>
-  );
-};
+  )
+}
 
-export default App;
+export default App

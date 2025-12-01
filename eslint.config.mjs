@@ -51,6 +51,9 @@ export default [
         },
       ],
       semi: ['error', 'never'],
+      // Disable react/no-unknown-property for react-three-fiber
+      // react-three-fiber uses lowercase props that ESLint doesn't recognize
+      'react/no-unknown-property': ['error', { ignore: ['args', 'attach', 'position', 'rotation', 'scale', 'castShadow', 'receiveShadow', 'intensity', 'object', 'map', 'normalMap', 'roughnessMap', 'aoMap', 'displacementMap', 'displacementScale', 'aoMapIntensity', 'roughness', 'metalness', 'transparent', 'opacity', 'side', 'shadow-mapSize', 'shadow-bias', 'shadow-camera-far', 'shadow-camera-left', 'shadow-camera-right', 'shadow-camera-top', 'shadow-camera-bottom', 'shadow-normalBias'] }],
       // '@stylistic/indent': ['error', 2],
     },
   },

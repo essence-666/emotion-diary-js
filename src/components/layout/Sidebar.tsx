@@ -39,8 +39,8 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: 'My Pet', path: '/pet', icon: FiHeart },
   { label: 'Mood Check-in', path: '/checkin', icon: FiSmile },
-  { label: 'Diary', path: '/diary', icon: FiBook },
   { label: 'Dashboard', path: '/dashboard', icon: FiHome },
+  { label: 'Diary', path: '/diary', icon: FiBook },
   { label: 'Analytics', path: '/analytics', icon: FiBarChart2, requiresPremium: true },
   { label: 'Settings', path: '/settings', icon: FiSettings },
 ]

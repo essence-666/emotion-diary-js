@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Button, HStack, VStack, useColorModeValue, Icon } from '@chakra-ui/react'
-import { GiMeal, GiPawHeart, GiSpeaker } from 'react-icons/gi'
+import { Button, HStack, VStack, Icon } from '@chakra-ui/react'
+import { MdRestaurant, MdPets, MdChat } from 'react-icons/md'
 
 interface InteractionButtonsProps {
   onFeed: () => void
@@ -100,27 +100,27 @@ export const InteractionButtons: React.FC<InteractionButtonsProps> = ({
           onClick={handleFeed}
           isDisabled={feedDisabled}
           colorScheme="orange"
-          size="lg"
-          height="100px"
+          size="md"
+          height="70px"
           flex={1}
-          fontSize="lg"
-          leftIcon={<Icon as={GiMeal} boxSize={8} />}
-          flexDirection="column"
-          gap={2}
+          fontSize="md"
           _hover={{
             transform: 'scale(1.05)',
             boxShadow: 'xl',
           }}
           transition="all 0.2s"
+          paddingY={3}
+          paddingX={4}
         >
-          {feedCooldown > 0 ? (
-            <>
-              <span>Feed</span>
-              <span style={{ fontSize: '0.875rem' }}>{formatTimeRemaining(feedCooldown)}</span>
-            </>
-          ) : (
-            'Feed'
-          )}
+          <VStack spacing={0.5}>
+            <Icon as={MdRestaurant} boxSize={6} />
+            <span>Feed</span>
+            {feedCooldown > 0 && (
+              <span style={{ fontSize: '0.75rem' }}>
+                {formatTimeRemaining(feedCooldown)}
+              </span>
+            )}
+          </VStack>
         </Button>
 
         {/* Pet Button */}
@@ -129,27 +129,27 @@ export const InteractionButtons: React.FC<InteractionButtonsProps> = ({
           onClick={handlePet}
           isDisabled={petDisabled}
           colorScheme="pink"
-          size="lg"
-          height="100px"
+          size="md"
+          height="70px"
           flex={1}
-          fontSize="lg"
-          leftIcon={<Icon as={GiPawHeart} boxSize={8} />}
-          flexDirection="column"
-          gap={2}
+          fontSize="md"
           _hover={{
             transform: 'scale(1.05)',
             boxShadow: 'xl',
           }}
           transition="all 0.2s"
+          paddingY={3}
+          paddingX={4}
         >
-          {petCooldown > 0 ? (
-            <>
-              <span>Pet</span>
-              <span style={{ fontSize: '0.875rem' }}>{formatTimeRemaining(petCooldown)}</span>
-            </>
-          ) : (
-            'Pet'
-          )}
+          <VStack spacing={0.5}>
+            <Icon as={MdPets} boxSize={6} />
+            <span>Pet</span>
+            {petCooldown > 0 && (
+              <span style={{ fontSize: '0.75rem' }}>
+                {formatTimeRemaining(petCooldown)}
+              </span>
+            )}
+          </VStack>
         </Button>
 
         {/* Talk Button */}
@@ -158,27 +158,27 @@ export const InteractionButtons: React.FC<InteractionButtonsProps> = ({
           onClick={handleTalk}
           isDisabled={talkDisabled}
           colorScheme="purple"
-          size="lg"
-          height="100px"
+          size="md"
+          height="70px"
           flex={1}
-          fontSize="lg"
-          leftIcon={<Icon as={GiSpeaker} boxSize={8} />}
-          flexDirection="column"
-          gap={2}
+          fontSize="md"
           _hover={{
             transform: 'scale(1.05)',
             boxShadow: 'xl',
           }}
           transition="all 0.2s"
+          paddingY={3}
+          paddingX={4}
         >
-          {talkCooldown > 0 ? (
-            <>
-              <span>Talk</span>
-              <span style={{ fontSize: '0.875rem' }}>{formatTimeRemaining(talkCooldown)}</span>
-            </>
-          ) : (
-            'Talk'
-          )}
+          <VStack spacing={0.5}>
+            <Icon as={MdChat} boxSize={6} />
+            <span>Talk</span>
+            {talkCooldown > 0 && (
+              <span style={{ fontSize: '0.75rem' }}>
+                {formatTimeRemaining(talkCooldown)}
+              </span>
+            )}
+          </VStack>
         </Button>
       </HStack>
     </VStack>

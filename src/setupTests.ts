@@ -1,4 +1,4 @@
-import '@testing-library/jest-dom';
+import '@testing-library/jest-dom'
 
 // Mock axios
 jest.mock('axios', () => ({
@@ -8,7 +8,7 @@ jest.mock('axios', () => ({
     put: jest.fn(() => Promise.resolve({ data: {} })),
     delete: jest.fn(() => Promise.resolve({ data: {} })),
   },
-}));
+}))
 
 // Mock fetch for RTK Query
 global.fetch = jest.fn(() =>
@@ -18,19 +18,19 @@ global.fetch = jest.fn(() =>
     text: async () => '',
     blob: async () => new Blob(),
   } as Response)
-);
+)
 
 // Mock Brojs CLI
 jest.mock('@brojs/cli', () => ({
   getConfigValue: jest.fn().mockReturnValue('http://localhost:3000'),
-}));
+}))
 
 // Mock analytics service
 jest.mock('./service/analytics/', () => ({
   analyticsService: {
     getAnalytics: jest.fn().mockResolvedValue({}),
   },
-}));
+}))
 
 // Mock localStorage
 const localStorageMock = {
@@ -38,8 +38,8 @@ const localStorageMock = {
   setItem: jest.fn(),
   removeItem: jest.fn(),
   clear: jest.fn(),
-};
-global.localStorage = localStorageMock as any;
+}
+global.localStorage = localStorageMock as any
 
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
@@ -54,7 +54,7 @@ Object.defineProperty(window, 'matchMedia', {
     removeEventListener: jest.fn(),
     dispatchEvent: jest.fn(),
   })),
-});
+})
 
 // Mock IntersectionObserver
 global.IntersectionObserver = class IntersectionObserver {
@@ -62,15 +62,15 @@ global.IntersectionObserver = class IntersectionObserver {
   disconnect() {}
   observe() {}
   takeRecords() {
-    return [];
+    return []
   }
   unobserve() {}
-} as any;
+} as any
 
 // Reset mocks before each test
 beforeEach(() => {
-  localStorageMock.getItem.mockClear();
-  localStorageMock.setItem.mockClear();
-  localStorageMock.removeItem.mockClear();
-  localStorageMock.clear.mockClear();
-});
+  localStorageMock.getItem.mockClear()
+  localStorageMock.setItem.mockClear()
+  localStorageMock.removeItem.mockClear()
+  localStorageMock.clear.mockClear()
+})

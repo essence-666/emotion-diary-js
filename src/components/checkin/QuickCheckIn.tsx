@@ -12,7 +12,7 @@ import {
   useColorModeValue,
   useToast,
 } from '@chakra-ui/react'
-import { EmotionSelector } from './EmotionSelector'
+import { EmotionSelector, type EmotionType } from './EmotionSelector'
 import { IntensitySlider } from './IntensitySlider'
 import { ReflectionInput } from './ReflectionInput'
 import { CheckinConfirmation } from './CheckinConfirmation'
@@ -36,7 +36,7 @@ export const QuickCheckIn: React.FC = () => {
   const headingColor = useColorModeValue('gray.800', 'white')
   const gradientBg = useColorModeValue(
     'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    'linear-gradient(135deg, #434343 0%, #000000 100%)'
+    'linear-gradient(135deg, #434343 0%, #000000 100%)',
   )
 
   const handleSubmit = async () => {
@@ -125,7 +125,7 @@ export const QuickCheckIn: React.FC = () => {
 
             {/* Emotion Selector */}
             <EmotionSelector
-              selectedEmotion={selectedEmotion}
+              selectedEmotion={selectedEmotion as EmotionType}
               onSelect={setSelectedEmotion}
             />
 
