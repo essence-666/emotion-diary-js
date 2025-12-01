@@ -227,10 +227,21 @@ const PetPage = () => {
   // Local state for optimistic updates and animations
   const [localHappiness, setLocalHappiness] = useState<number | null>(null)
   const [animationState, setAnimationState] = useState<AnimationState>('idle')
-  const [dialogue, setDialogue] = useState<string>('')
+  const [dialogues, setDialogues] = useState<Array<{ id: string; message: string }>>([])
 
   // Combined loading state
   const isInteractionLoading = isFeedingLoading || isPettingLoading || isTalkingLoading
+
+  // Helper to add a dialogue message
+  const addDialogue = (message: string) => {
+    const id = `${Date.now()}-${Math.random()}`
+    setDialogues((prev) => [...prev, { id, message }])
+  }
+
+  // Helper to dismiss a dialogue message
+  const dismissDialogue = (id: string) => {
+    setDialogues((prev) => prev.filter((d) => d.id !== id))
+  }
 
   // Use local happiness if available, otherwise use pet data
   const currentHappiness = localHappiness ?? pet?.happiness_level ?? 50
@@ -254,7 +265,7 @@ const PetPage = () => {
     // Optimistic update
     setLocalHappiness(Math.min(100, currentHappiness + 10))
     setAnimationState('eating')
-    setDialogue('That was delicious!')
+    addDialogue('That was delicious!')
 
     try {
       const result = await feedPet().unwrap()
@@ -275,7 +286,6 @@ const PetPage = () => {
     } catch (err) {
       // Rollback on error
       setLocalHappiness(pet.happiness_level)
-      setDialogue('')
 
       toast({
         title: 'Failed to feed pet',
@@ -287,7 +297,6 @@ const PetPage = () => {
     } finally {
       setTimeout(() => {
         setAnimationState('idle')
-        setDialogue('')
       }, 3000)
     }
   }
@@ -299,7 +308,7 @@ const PetPage = () => {
     // Optimistic update
     setLocalHappiness(Math.min(100, currentHappiness + 5))
     setAnimationState('being_petted')
-    setDialogue('That feels great!')
+    addDialogue('That feels great!')
 
     try {
       const result = await petPet().unwrap()
@@ -320,7 +329,6 @@ const PetPage = () => {
     } catch (err) {
       // Rollback on error
       setLocalHappiness(pet.happiness_level)
-      setDialogue('')
 
       toast({
         title: 'Failed to pet',
@@ -332,7 +340,6 @@ const PetPage = () => {
     } finally {
       setTimeout(() => {
         setAnimationState('idle')
-        setDialogue('')
       }, 3000)
     }
   }
@@ -348,7 +355,7 @@ const PetPage = () => {
     try {
       const result = await talkToPet().unwrap()
       setLocalHappiness(result.pet.happiness_level)
-      setDialogue(result.dialogue)
+      addDialogue(result.dialogue)
 
       toast({
         title: 'Chatted with pet!',
@@ -365,7 +372,7 @@ const PetPage = () => {
     } catch (err) {
       // Rollback on error
       setLocalHappiness(pet.happiness_level)
-      setDialogue('...')
+      addDialogue('...')
 
       toast({
         title: 'Failed to talk',
@@ -377,7 +384,6 @@ const PetPage = () => {
     } finally {
       setTimeout(() => {
         setAnimationState('idle')
-        setDialogue('')
       }, 3000)
     }
   }
@@ -493,14 +499,14 @@ const PetPage = () => {
         gl={{ preserveDrawingBuffer: true, antialias: true }}
         style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0 }}
       >
-        {/* Camera - 30 FOV for cinematic isometric RPG look (not fish-eye) */}
-        {/* <PerspectiveCamera makeDefault position={[0, 5, 10]} fov={30} /> */}
-        
+        {/* Camera - Optimized for pet + ground view */}
+        <PerspectiveCamera makeDefault position={[0, 3, 8]} fov={35} />
+
         {/* Configure renderer: shadows, tone mapping, and exposure */}
-        {/* <RendererConfig /> */}
-        
+        <RendererConfig />
+
         {/* Camera Controls - idle auto-rotate, dolly to cursor */}
-        {/* <IdleCameraController /> */}
+        <IdleCameraController />
 
         {/* Soft Shadows for toon style */}
         {/* <SoftShadows size={25} samples={10} /> */}
@@ -577,8 +583,11 @@ const PetPage = () => {
         py={6}
         pointerEvents="none"
       >
-        {/* Top HUD: Stats */}
+        {/* Top HUD: Stats - positioned at top right */}
         <Box
+          position="absolute"
+          top={4}
+          right={4}
           pointerEvents="auto"
         >
           <PetStats
@@ -596,13 +605,15 @@ const PetPage = () => {
           position="relative"
         >
           <Box position="relative" pointerEvents="auto">
-            {/* Dialogue above pet */}
-            {dialogue && (
+            {/* Dialogue messages stack */}
+            {dialogues.map((dialogue, index) => (
               <PetDialogue
-                message={dialogue}
-                onDismiss={() => setDialogue('')}
+                key={dialogue.id}
+                message={dialogue.message}
+                index={index}
+                onDismiss={() => dismissDialogue(dialogue.id)}
               />
-            )}
+            ))}
           </Box>
         </Flex>
 

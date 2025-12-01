@@ -7,7 +7,7 @@ module.exports = {
   apiPath: 'stubs/api',
   webpackConfig: {
     output: {
-      publicPath: `/static/${pkg.name}/${process.env.VERSION || pkg.version}/`
+      publicPath: `/static/${pkg.name}/${process.env.VERSION || pkg.version}/`,
     },
     module: {
       rules: [
@@ -49,9 +49,10 @@ module.exports = {
         },
       ],
       headers: {
-        'Content-Security-Policy': "default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval'; connect-src * 'unsafe-inline'; img-src * data: blob: 'unsafe-inline'; frame-src *; style-src * 'unsafe-inline';"
-      }
-    }
+        'Content-Security-Policy':
+          "default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval'; connect-src * 'unsafe-inline'; img-src * data: blob: 'unsafe-inline'; frame-src *; style-src * 'unsafe-inline';",
+      },
+    },
   },
   navigations: {
     'emotion-diary.main': '/emotion-diary',
@@ -65,5 +66,5 @@ module.exports = {
   },
   config: {
     'emotion-diary.api': 'https://emotion-diary.aquaf1na.fun/api/v1',
-  }
+  },
 }

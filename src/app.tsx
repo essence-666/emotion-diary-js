@@ -28,7 +28,6 @@ const AnalyticsPage = () => (
   </Box>
 )
 
-
 const App = () => {
   return (
     <Provider store={store}>
@@ -40,7 +39,6 @@ const App = () => {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
 
-              {/* Protected routes with layout - Pet is now the main page */}
               <Route
                 path="/"
                 element={

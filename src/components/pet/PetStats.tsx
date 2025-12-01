@@ -10,6 +10,7 @@ import {
   Icon,
 } from '@chakra-ui/react'
 import { WarningIcon } from '@chakra-ui/icons'
+import { MdPets, MdFavorite, MdAccessTime } from 'react-icons/md'
 import { formatDistanceToNow } from 'date-fns'
 
 interface PetStatsProps {
@@ -54,31 +55,33 @@ export const PetStats: React.FC<PetStatsProps> = ({
     <Box
       data-testid="pet-stats"
       bg={cardBg}
-      borderRadius="xl"
-      p={6}
+      borderRadius="lg"
+      p={3}
       borderWidth="1px"
       borderColor={borderColor}
       boxShadow="md"
       width="100%"
-      maxWidth="400px"
+      maxWidth="280px"
     >
-      <VStack spacing={4} align="stretch">
-        {/* Pet Name */}
-        <Heading size="lg" textAlign="center">
-          {name}
-        </Heading>
+      <VStack spacing={2} align="stretch">
+        {/* Pet Name with Icon */}
+        <HStack justify="center" spacing={2}>
+          <Icon as={MdPets} boxSize={5} color={`${colorScheme}.500`} />
+          <Heading size="md">
+            {name}
+          </Heading>
+        </HStack>
 
-        {/* Happiness Status */}
-        <HStack justify="space-between">
-          <HStack>
-            <Text fontSize="lg" fontWeight="bold">
-              {status}
-            </Text>
-            {isCritical && (
-              <Icon as={WarningIcon} color="red.500" boxSize={5} />
-            )}
-          </HStack>
-          <Text fontSize="lg" fontWeight="bold" color={`${colorScheme}.500`}>
+        {/* Happiness with Heart Icon */}
+        <HStack spacing={2} align="center">
+          <Icon as={MdFavorite} boxSize={4} color={`${colorScheme}.500`} />
+          <Text fontSize="sm" fontWeight="medium" flex={1}>
+            {status}
+          </Text>
+          {isCritical && (
+            <Icon as={WarningIcon} color="red.500" boxSize={4} />
+          )}
+          <Text fontSize="sm" fontWeight="bold" color={`${colorScheme}.500`}>
             {happiness}%
           </Text>
         </HStack>
@@ -87,32 +90,34 @@ export const PetStats: React.FC<PetStatsProps> = ({
         <Progress
           value={happiness}
           colorScheme={colorScheme}
-          size="lg"
+          size="sm"
           borderRadius="full"
           hasStripe
           isAnimated
         />
 
-        {/* Last Interaction */}
-        <Text
-          fontSize="sm"
-          color={useColorModeValue('gray.600', 'gray.400')}
-          textAlign="center"
-        >
-          {lastInteractionText}
-        </Text>
+        {/* Last Interaction with Clock Icon */}
+        <HStack spacing={1.5} justify="center">
+          <Icon as={MdAccessTime} boxSize={3.5} color={useColorModeValue('gray.500', 'gray.400')} />
+          <Text
+            fontSize="xs"
+            color={useColorModeValue('gray.600', 'gray.400')}
+          >
+            {lastInteractionText}
+          </Text>
+        </HStack>
 
         {/* Critical Warning */}
         {isCritical && (
           <Box
             bg="red.50"
             borderRadius="md"
-            p={3}
+            p={2}
             borderWidth="1px"
             borderColor="red.200"
           >
-            <Text fontSize="sm" color="red.600" fontWeight="medium">
-              ⚠️ Your pet needs attention! Happiness is critically low.
+            <Text fontSize="xs" color="red.600" fontWeight="medium">
+              ⚠️ Your pet needs attention!
             </Text>
           </Box>
         )}
